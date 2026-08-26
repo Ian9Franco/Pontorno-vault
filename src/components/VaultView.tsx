@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useVault, VaultItem } from '@/context/VaultContext';
+import { useVault } from '@/context/VaultContext';
 import { copyToClipboardSecure } from '@/lib/security/clipboard';
 import { CredentialPayload } from '@/lib/crypto';
 import { PlatformIcon } from './PlatformIcon';
 import { OtpInboxWidget } from './OtpInboxWidget';
 import { EmailForwardingGuideModal } from './EmailForwardingGuideModal';
+import { CreateVaultModal } from './CreateVaultModal';
 import {
   Search,
   Plus,
@@ -20,11 +21,10 @@ import {
   FolderLock,
   Users,
   Key,
-  Globe,
   Lock,
   User,
+  Shield,
   Sparkles,
-  Mail,
 } from 'lucide-react';
 
 interface VaultViewProps {
@@ -43,17 +43,18 @@ export const VaultView: React.FC<VaultViewProps> = ({
     setActiveVaultId,
     credentials,
     removeCredential,
-    addSharedVault,
   } = useVault();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
-  const [newVaultName, setNewVaultName] = useState('');
-  const [isCreatingVault, setIsCreatingVault] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isCreateVaultOpen, setIsCreateVaultOpen] = useState(false);
 
   const activeVault = vaults.find((v) => v.id === activeVaultId) || vaults[0];
+
+  const sharedVaults = useMemo(() => vaults.filter((v) => v.type === 'SHARED'), [vaults]);
+  const personalVaults = useMemo(() => vaults.filter((v) => v.type === 'PERSONAL'), [vaults]);
 
   // Filter credentials belonging to active vault and matching search query
   const filteredCredentials = useMemo(() => {
@@ -84,96 +85,103 @@ export const VaultView: React.FC<VaultViewProps> = ({
     setVisiblePasswords((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleCreateSharedVault = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newVaultName.trim()) return;
-    await addSharedVault(newVaultName.trim());
-    setNewVaultName('');
-    setIsCreatingVault(false);
-  };
-
   return (
     <>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* OTP Verification Codes Live Feed (Only on Family / Shared Vault) */}
+        {/* OTP Verification Codes Live Feed (Only on Family / Shared Vaults) */}
         {activeVault?.type === 'SHARED' && (
           <OtpInboxWidget onOpenGuide={() => setIsGuideOpen(true)} />
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {/* Sidebar / Vault List */}
+          {/* Sidebar / Categorized Vaults */}
           <div className="space-y-4">
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-3 px-2">
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-4">
+              <div className="flex items-center justify-between px-1">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">Tus Bóvedas</h2>
                 <button
-                  onClick={() => setIsCreatingVault(true)}
-                  title="Crear Bóveda Familiar Compartida"
-                  className="p-1 rounded-lg hover:bg-gray-800 text-emerald-400 transition"
+                  onClick={() => setIsCreateVaultOpen(true)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs font-semibold border border-emerald-500/30 transition"
+                  title="Crear Nueva Bóveda"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Crear</span>
                 </button>
               </div>
 
+              {/* 1. Shared / Family Vaults Section */}
               <div className="space-y-1.5">
-                {vaults.map((vault) => {
-                  const isActive = activeVault?.id === vault.id;
-                  const count = credentials.filter((c) => c.vaultId === vault.id).length;
+                <div className="flex items-center gap-1.5 px-2 text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Bóvedas Familiares</span>
+                </div>
 
-                  return (
-                    <button
-                      key={vault.id}
-                      onClick={() => setActiveVaultId(vault.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition ${
-                        isActive
-                          ? 'bg-emerald-600/15 border border-emerald-500/40 text-emerald-300 shadow-sm'
-                          : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 truncate">
-                        {vault.type === 'SHARED' ? (
-                          <Users className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                        ) : (
-                          <FolderLock className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                        )}
-                        <span className="truncate">{vault.name}</span>
-                      </div>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-950/80 text-gray-400 font-mono">
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
+                {sharedVaults.length === 0 ? (
+                  <p className="text-[11px] text-gray-500 px-2 italic">Sin bóvedas familiares</p>
+                ) : (
+                  sharedVaults.map((vault) => {
+                    const isActive = activeVault?.id === vault.id;
+                    const count = credentials.filter((c) => c.vaultId === vault.id).length;
+
+                    return (
+                      <button
+                        key={vault.id}
+                        onClick={() => setActiveVaultId(vault.id)}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
+                          isActive
+                            ? 'bg-cyan-950/50 border border-cyan-500/50 text-cyan-200 shadow-sm'
+                            : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200 border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Users className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                          <span className="truncate">{vault.name}</span>
+                        </div>
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-950/80 text-gray-400 font-mono">
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
               </div>
 
-              {/* Create Shared Vault Inline Form */}
-              {isCreatingVault && (
-                <form onSubmit={handleCreateSharedVault} className="mt-3 p-3 bg-gray-950 border border-gray-800 rounded-xl space-y-2">
-                  <input
-                    type="text"
-                    placeholder="Nombre de la bóveda familiar..."
-                    value={newVaultName}
-                    onChange={(e) => setNewVaultName(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
-                    autoFocus
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      className="flex-1 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold transition"
-                    >
-                      Crear
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsCreatingVault(false)}
-                      className="flex-1 py-1 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </form>
-              )}
+              {/* 2. Personal / Private Vaults Section */}
+              <div className="space-y-1.5 pt-2 border-t border-gray-800/80">
+                <div className="flex items-center gap-1.5 px-2 text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">
+                  <FolderLock className="w-3.5 h-3.5" />
+                  <span>Bóvedas Privadas (Solo Tú)</span>
+                </div>
+
+                {personalVaults.length === 0 ? (
+                  <p className="text-[11px] text-gray-500 px-2 italic">Sin bóvedas privadas</p>
+                ) : (
+                  personalVaults.map((vault) => {
+                    const isActive = activeVault?.id === vault.id;
+                    const count = credentials.filter((c) => c.vaultId === vault.id).length;
+
+                    return (
+                      <button
+                        key={vault.id}
+                        onClick={() => setActiveVaultId(vault.id)}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
+                          isActive
+                            ? 'bg-emerald-950/50 border border-emerald-500/50 text-emerald-200 shadow-sm'
+                            : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200 border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <FolderLock className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                          <span className="truncate">{vault.name}</span>
+                        </div>
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-950/80 text-gray-400 font-mono">
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
             </div>
 
             {/* User Session Info Card */}
@@ -194,26 +202,58 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
           {/* Main Content Area */}
           <div className="md:col-span-3 space-y-4">
-            {/* Header Controls: Search + Add */}
-            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
-                <input
-                  type="text"
-                  placeholder={`Buscar en ${activeVault?.name || 'la bóveda'}...`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 text-sm"
-                />
+            {/* Active Vault Banner */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`p-2.5 rounded-xl ${
+                    activeVault?.type === 'SHARED'
+                      ? 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400'
+                      : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                  }`}
+                >
+                  {activeVault?.type === 'SHARED' ? <Users className="w-5 h-5" /> : <FolderLock className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <span>{activeVault?.name || 'Bóveda'}</span>
+                    <span
+                      className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${
+                        activeVault?.type === 'SHARED'
+                          ? 'bg-cyan-950/80 border border-cyan-800/60 text-cyan-300'
+                          : 'bg-emerald-950/80 border border-emerald-800/60 text-emerald-300'
+                      }`}
+                    >
+                      {activeVault?.type === 'SHARED' ? '👨‍👩‍👧‍👦 Familiar / Compartida' : '🔒 Privada (Solo Tú)'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {activeVault?.type === 'SHARED'
+                      ? 'Todas las credenciales aquí son visibles para los miembros de tu familia.'
+                      : 'Esta bóveda es 100% privada. Ningún otro familiar tiene la clave para verla.'}
+                  </p>
+                </div>
               </div>
 
               <button
                 onClick={onAddCredential}
-                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-950/50 transition flex-shrink-0"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold shadow-lg shadow-emerald-950/50 transition flex-shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>Añadir Credencial</span>
               </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+              <input
+                type="text"
+                placeholder={`Buscar en ${activeVault?.name || 'la bóveda'} por plataforma, usuario o autor...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 text-xs"
+              />
             </div>
 
             {/* Credentials List */}
@@ -377,6 +417,11 @@ export const VaultView: React.FC<VaultViewProps> = ({
       <EmailForwardingGuideModal
         isOpen={isGuideOpen}
         onClose={() => setIsGuideOpen(false)}
+      />
+
+      <CreateVaultModal
+        isOpen={isCreateVaultOpen}
+        onClose={() => setIsCreateVaultOpen(false)}
       />
     </>
   );
