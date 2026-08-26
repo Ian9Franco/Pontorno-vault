@@ -20,6 +20,9 @@ import {
   Key,
   Globe,
   Lock,
+  User,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
 
 interface VaultViewProps {
@@ -32,6 +35,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onEditCredential,
 }) => {
   const {
+    userProfile,
     vaults,
     activeVaultId,
     setActiveVaultId,
@@ -61,7 +65,8 @@ export const VaultView: React.FC<VaultViewProps> = ({
         p.platform.toLowerCase().includes(q) ||
         p.username.toLowerCase().includes(q) ||
         (p.url && p.url.toLowerCase().includes(q)) ||
-        (p.notes && p.notes.toLowerCase().includes(q))
+        (p.notes && p.notes.toLowerCase().includes(q)) ||
+        (item.createdBy?.name && item.createdBy.name.toLowerCase().includes(q))
       );
     });
   }, [credentials, activeVault, searchQuery]);
@@ -162,14 +167,19 @@ export const VaultView: React.FC<VaultViewProps> = ({
             )}
           </div>
 
-          {/* Zero-Knowledge Security Badge */}
-          <div className="bg-gray-900/60 border border-gray-800/80 rounded-2xl p-4 text-xs text-gray-400 space-y-2">
+          {/* User Session Info Card */}
+          <div className="bg-gray-900/60 border border-gray-800/80 rounded-2xl p-4 text-xs text-gray-400 space-y-2.5">
             <div className="flex items-center gap-2 text-emerald-400 font-semibold">
-              <Lock className="w-4 h-4" /> Bóveda Aislada
+              <User className="w-4 h-4" /> Sesión Activa
             </div>
-            <p>
-              Todos los datos mostrados han sido descifrados exclusivamente en la memoria RAM de tu navegador.
-            </p>
+            <div className="p-2.5 rounded-xl bg-gray-950/80 border border-gray-800 text-xs">
+              <span className="text-gray-200 font-semibold block">{userProfile?.displayName || 'Usuario'}</span>
+              <span className="text-gray-500 text-[11px] block truncate">{userProfile?.email}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+              <Lock className="w-3 h-3 text-emerald-400" />
+              <span>Bóveda descifrada en memoria local</span>
+            </div>
           </div>
         </div>
 
@@ -181,7 +191,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
               <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
               <input
                 type="text"
-                placeholder={`Buscar en ${activeVault?.name || 'la bóveda'}...`}
+                placeholder={`Buscar en ${activeVault?.name || 'la bóveda'} (plataforma, usuario o autor)...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 text-sm"
@@ -228,6 +238,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 const isUserCopied = copiedId === `${item.id}-user`;
                 const isPassCopied = copiedId === `${item.id}-pass`;
 
+                const creatorName = item.createdBy?.name || 'Miembro Familiar';
+                const isMe = Boolean(item.createdBy?.isCurrentUser);
+                const creatorInitial = creatorName.replace('(Tú)', '').trim().substring(0, 2).toUpperCase() || 'U';
+
                 return (
                   <div
                     key={item.id}
@@ -258,9 +272,22 @@ export const VaultView: React.FC<VaultViewProps> = ({
                               </a>
                             )}
                           </h4>
-                          <span className="text-xs text-gray-400 block truncate">
-                            Actualizado: {new Date(item.updatedAt).toLocaleDateString()}
-                          </span>
+
+                          {/* Creator & Timestamp Badge */}
+                          <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5 flex-wrap">
+                            <span className="flex items-center gap-1">
+                              <span className="w-4 h-4 rounded-full bg-emerald-950 border border-emerald-800/60 text-emerald-300 text-[9px] font-bold flex items-center justify-center">
+                                {creatorInitial}
+                              </span>
+                              <span className={isMe ? 'text-emerald-300 font-medium' : 'text-gray-300'}>
+                                {creatorName}
+                              </span>
+                            </span>
+                            <span className="text-gray-600">•</span>
+                            <span className="text-gray-500 text-[11px]">
+                              {new Date(item.updatedAt).toLocaleDateString()}
+                            </span>
+                          </div>
                         </div>
                       </div>
 

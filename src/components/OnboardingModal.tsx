@@ -3,10 +3,11 @@
 import React, { useState } from 'react';
 import { useVault } from '@/context/VaultContext';
 import { estimatePasswordStrength } from '@/lib/security/generator';
-import { ShieldCheck, Lock, Eye, EyeOff, Sparkles, AlertTriangle, Key } from 'lucide-react';
+import { ShieldCheck, User, Eye, EyeOff, AlertTriangle, Key } from 'lucide-react';
 
 export const OnboardingModal: React.FC = () => {
-  const { setupAccount, isLoading } = useVault();
+  const { setupAccount, isLoading, user } = useVault();
+  const [displayName, setDisplayName] = useState(user?.user_metadata?.display_name || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -29,7 +30,7 @@ export const OnboardingModal: React.FC = () => {
     }
 
     try {
-      await setupAccount(password);
+      await setupAccount(password, displayName || 'Usuario');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al inicializar la bóveda');
     }
@@ -62,9 +63,23 @@ export const OnboardingModal: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5 flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-emerald-400" /> Tu Nombre o Alias Familiar
+            </label>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Ej. Ian, Papá, Mamá, Sofía..."
+              className="w-full px-4 py-2.5 bg-gray-950 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 text-sm"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">
               Contraseña Maestra
             </label>
             <div className="relative">
@@ -72,17 +87,17 @@ export const OnboardingModal: React.FC = () => {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Ingresa una contraseña segura..."
-                className="w-full px-4 py-3 bg-gray-950 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm"
+                placeholder="Ingresa una contraseña maestra segura..."
+                className="w-full px-4 py-2.5 bg-gray-950 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 text-sm pr-10"
                 required
                 autoFocus
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-3 text-gray-400 hover:text-gray-200"
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200"
               >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
 
@@ -104,7 +119,7 @@ export const OnboardingModal: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">
               Confirmar Contraseña Maestra
             </label>
             <input
@@ -112,7 +127,7 @@ export const OnboardingModal: React.FC = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Vuelve a ingresar la contraseña..."
-              className="w-full px-4 py-3 bg-gray-950 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm"
+              className="w-full px-4 py-2.5 bg-gray-950 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 text-sm"
               required
             />
           </div>
@@ -120,7 +135,7 @@ export const OnboardingModal: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm shadow-lg shadow-emerald-950/50 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm shadow-lg shadow-emerald-950/50 transition disabled:opacity-50 flex items-center justify-center gap-2 pt-3"
           >
             {isLoading ? (
               <>
