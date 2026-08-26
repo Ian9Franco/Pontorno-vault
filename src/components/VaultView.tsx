@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useVault, VaultItem } from '@/context/VaultContext';
 import { copyToClipboardSecure } from '@/lib/security/clipboard';
 import { CredentialPayload } from '@/lib/crypto';
+import { findPlatformByNameOrDomain, getPlatformLogoUrl } from '@/lib/constants/platforms';
 import {
   Search,
   Plus,
@@ -16,7 +17,6 @@ import {
   Edit2,
   FolderLock,
   Users,
-  ShieldAlert,
   Key,
   Globe,
   Lock,
@@ -228,39 +228,60 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 const isUserCopied = copiedId === `${item.id}-user`;
                 const isPassCopied = copiedId === `${item.id}-pass`;
 
+                const matchedPlatform = findPlatformByNameOrDomain(item.payload.platform);
+                const logoUrl = getPlatformLogoUrl(matchedPlatform || null, item.payload.url);
+
                 return (
                   <div
                     key={item.id}
-                    className="bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-2xl p-4 transition shadow-sm space-y-3"
+                    className="bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-2xl p-4 transition shadow-sm space-y-3 group"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold text-base uppercase">
-                          {item.payload.platform.substring(0, 2)}
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* Real Platform Logo Badge */}
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center p-2 flex-shrink-0 shadow-sm transition group-hover:scale-105"
+                          style={{ backgroundColor: matchedPlatform?.bgColor || '#0f766e' }}
+                        >
+                          {logoUrl ? (
+                            <img
+                              src={logoUrl}
+                              alt={item.payload.platform}
+                              className="w-full h-full object-contain filter brightness-0 invert"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <span className="font-bold text-sm text-white uppercase">
+                              {item.payload.platform.substring(0, 2)}
+                            </span>
+                          )}
                         </div>
-                        <div>
-                          <h4 className="text-base font-semibold text-white flex items-center gap-2">
-                            {item.payload.platform}
+
+                        <div className="min-w-0">
+                          <h4 className="text-base font-semibold text-white flex items-center gap-2 truncate">
+                            <span className="truncate">{item.payload.platform}</span>
                             {item.payload.url && (
                               <a
                                 href={item.payload.url.startsWith('http') ? item.payload.url : `https://${item.payload.url}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-gray-500 hover:text-emerald-400 transition"
-                                title="Abrir sitio"
+                                className="text-gray-500 hover:text-emerald-400 transition flex-shrink-0"
+                                title="Abrir sitio web"
                               >
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </a>
                             )}
                           </h4>
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-gray-400 block truncate">
                             Actualizado: {new Date(item.updatedAt).toLocaleDateString()}
                           </span>
                         </div>
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-shrink-0">
                         <button
                           onClick={() => onEditCredential({ id: item.id, payload: item.payload })}
                           className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition"
