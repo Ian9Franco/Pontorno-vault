@@ -432,8 +432,19 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
             }
           });
           if (authError) throw authError;
-          const registeredUser = authData.user;
+          let registeredUser = authData.user;
           if (!registeredUser) throw new Error('No se pudo crear la cuenta');
+
+          // If session is null (e.g. email confirmation setting), sign in immediately to get active auth token
+          if (!authData.session) {
+            const { data: sData } = await supabase.auth.signInWithPassword({
+              email,
+              password: masterPassword,
+            });
+            if (sData?.user) {
+              registeredUser = sData.user;
+            }
+          }
 
           setUser(registeredUser);
           setUserProfile({ id: registeredUser.id, email, displayName });
@@ -449,7 +460,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
           userMasterKeyRef.current = userMasterKey;
           userCryptoDataRef.current = setup;
 
-          await supabase.from('user_crypto').insert({
+          const { error: cryptoError } = await supabase.from('user_crypto').upsert({
             user_id: registeredUser.id,
             encrypted_user_key: setup.encryptedUserKey,
             user_key_nonce: setup.userKeyNonce,
@@ -458,6 +469,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
             kdf_parameters: setup.kdfParameters,
             crypto_version: setup.cryptoVersion,
           });
+          if (cryptoError) {
+            console.error('Error in user_crypto upsert:', cryptoError);
+            throw new Error(`Error al guardar clave criptográfica: ${cryptoError.message}`);
+          }
 
           // 4. Create or Join Shared Family Vault
           let familyVaultId: string | null = null;
@@ -485,7 +500,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
             familyVaultId = newVault.id;
 
             const wrappedFamilyKey = await wrapVaultKeyForUser(familyVaultKey, userMasterKey);
-            await supabase.from('vault_members').insert({
+            await supabase.from('vault_members').upsert({
               vault_id: familyVaultId,
               user_id: registeredUser.id,
               encrypted_vault_key: wrappedFamilyKey.ciphertext,
@@ -494,7 +509,6 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
             });
           } else {
             familyVaultId = existingFamilyVault.id;
-            // For subsequent members, create shared vault key wrapper
             familyVaultKey = await createVaultKey();
             const wrappedFamilyKey = await wrapVaultKeyForUser(familyVaultKey, userMasterKey);
             await supabase.from('vault_members').upsert({
@@ -520,7 +534,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
           if (pvErr) throw pvErr;
 
           const wrappedPersonalKey = await wrapVaultKeyForUser(personalVaultKey, userMasterKey);
-          await supabase.from('vault_members').insert({
+          await supabase.from('vault_members').upsert({
             vault_id: personalVault.id,
             user_id: registeredUser.id,
             encrypted_vault_key: wrappedPersonalKey.ciphertext,
@@ -544,26 +558,67 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
           await fetchProfile(loggedInUser);
 
           // Fetch crypto record
-          const { data: cryptoData, error: cryptoErr } = await supabase
+          const { data: cryptoData } = await supabase
             .from('user_crypto')
             .select('*')
             .eq('user_id', loggedInUser.id)
-            .single();
-          if (cryptoErr || !cryptoData) throw new Error('No se encontró la configuración de la bóveda');
+            .maybeSingle();
 
-          const userCryptoRecord: UserCryptoSetup = {
-            kdfSalt: cryptoData.kdf_salt,
-            kdfAlgorithm: cryptoData.kdf_algorithm,
-            kdfParameters: cryptoData.kdf_parameters,
-            encryptedUserKey: cryptoData.encrypted_user_key,
-            userKeyNonce: cryptoData.user_key_nonce,
-            cryptoVersion: cryptoData.crypto_version,
-          };
-          userCryptoDataRef.current = userCryptoRecord;
+          let userCryptoRecord: UserCryptoSetup;
+          let userMasterKey: CryptoKey;
 
-          // Unlock UserMasterKey with masterPassword
-          const userMasterKey = await unlockUserMasterKey(masterPassword, userCryptoRecord);
+          if (!cryptoData) {
+            // Auto-heal: User existed in Supabase Auth but had not generated user_crypto yet
+            const { setup, userMasterKey: newKey } = await setupUserCrypto(masterPassword);
+            userMasterKey = newKey;
+            userCryptoRecord = setup;
+
+            await supabase.from('user_crypto').upsert({
+              user_id: loggedInUser.id,
+              encrypted_user_key: setup.encryptedUserKey,
+              user_key_nonce: setup.userKeyNonce,
+              kdf_salt: setup.kdfSalt,
+              kdf_algorithm: setup.kdfAlgorithm,
+              kdf_parameters: setup.kdfParameters,
+              crypto_version: setup.cryptoVersion,
+            });
+
+            // Ensure personal vault exists
+            const personalVaultKey = await createVaultKey();
+            const { data: personalVault } = await supabase
+              .from('vaults')
+              .insert({
+                owner_user_id: loggedInUser.id,
+                name: `Bóveda Personal`,
+                type: 'PERSONAL',
+              })
+              .select()
+              .single();
+
+            if (personalVault) {
+              const wrappedPersonalKey = await wrapVaultKeyForUser(personalVaultKey, userMasterKey);
+              await supabase.from('vault_members').upsert({
+                vault_id: personalVault.id,
+                user_id: loggedInUser.id,
+                encrypted_vault_key: wrappedPersonalKey.ciphertext,
+                nonce: wrappedPersonalKey.nonce,
+                permissions: 'ADMIN',
+              });
+            }
+          } else {
+            userCryptoRecord = {
+              kdfSalt: cryptoData.kdf_salt,
+              kdfAlgorithm: cryptoData.kdf_algorithm,
+              kdfParameters: cryptoData.kdf_parameters,
+              encryptedUserKey: cryptoData.encrypted_user_key,
+              userKeyNonce: cryptoData.user_key_nonce,
+              cryptoVersion: cryptoData.crypto_version,
+            };
+            userMasterKey = await unlockUserMasterKey(masterPassword, userCryptoRecord);
+          }
+
           userMasterKeyRef.current = userMasterKey;
+          userCryptoDataRef.current = userCryptoRecord;
 
           setIsConfigured(true);
           await decryptVaultsAndCredentials(userMasterKey, loggedInUser);
