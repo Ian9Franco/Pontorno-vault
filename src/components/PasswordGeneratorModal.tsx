@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateSecurePassword, generatePassphrase, estimatePasswordStrength } from '@/lib/security/generator';
 import { copyToClipboardSecure } from '@/lib/security/clipboard';
-import { KeyRound, Copy, Check, RefreshCw, X, Shield } from 'lucide-react';
+import { KeyRound, Copy, Check, RefreshCw, X, Sparkles } from 'lucide-react';
 
 interface PasswordGeneratorModalProps {
   isOpen: boolean;
@@ -59,26 +59,29 @@ export const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
   const strength = estimatePasswordStrength(generatedPassword);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-md">
-      <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl p-6 animate-slide-up">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
+      <div className="w-full max-w-md bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-7 animate-slide-up">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+            <div className="p-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
               <KeyRound className="w-5 h-5" />
             </div>
-            <h3 className="text-lg font-bold text-white">Generador Criptográfico</h3>
+            <div>
+              <h3 className="text-base font-bold text-slate-100">Generador de Contraseñas</h3>
+              <p className="text-xs text-slate-400">Crea contraseñas únicas e imposibles de adivinar</p>
+            </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-white">
+          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Mode Selector */}
-        <div className="flex bg-gray-950 p-1 rounded-xl border border-gray-800 mb-5">
+        <div className="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800/80 mb-5">
           <button
             onClick={() => setMode('random')}
             className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition ${
-              mode === 'random' ? 'bg-gray-800 text-white shadow' : 'text-gray-400 hover:text-white'
+              mode === 'random' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'
             }`}
           >
             Contraseña
@@ -86,40 +89,44 @@ export const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
           <button
             onClick={() => setMode('passphrase')}
             className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition ${
-              mode === 'passphrase' ? 'bg-gray-800 text-white shadow' : 'text-gray-400 hover:text-white'
+              mode === 'passphrase' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'
             }`}
           >
-            Passphrase
+            Frase de Palabras
           </button>
         </div>
 
         {/* Output Display */}
-        <div className="p-4 bg-gray-950 border border-gray-800 rounded-xl mb-4">
+        <div className="p-4 bg-slate-950/90 border border-slate-800/80 rounded-2xl mb-4 shadow-sm">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-mono text-sm sm:text-base text-emerald-400 break-all select-all font-medium">
+            <span className="font-mono text-sm sm:text-base text-indigo-300 break-all select-all font-semibold">
               {generatedPassword}
             </span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0">
               <button
                 onClick={generate}
-                title="Generar nueva"
-                className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition"
+                title="Regenerar"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
               <button
                 onClick={handleCopy}
-                title="Copiar contraseña"
-                className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition"
+                className="p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-sm"
+                title="Copiar al portapapeles"
               >
-                {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                {copied ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
           </div>
 
           {/* Strength Bar */}
           <div className="mt-3 space-y-1">
-            <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+            <div className="flex justify-between text-[11px] text-slate-400">
+              <span>Nivel de seguridad:</span>
+              <span className="font-medium text-slate-200">{strength.label}</span>
+            </div>
+            <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
               <div
                 className={`h-full ${strength.color} transition-all duration-300`}
                 style={{ width: `${strength.score}%` }}
@@ -129,103 +136,101 @@ export const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
         </div>
 
         {/* Options */}
-        {mode === 'random' ? (
-          <div className="space-y-4 mb-6">
-            <div>
-              <div className="flex justify-between text-xs text-gray-300 mb-1">
-                <span>Longitud:</span>
-                <span className="font-bold text-white">{length} caracteres</span>
+        <div className="space-y-4 mb-6 text-xs text-slate-300">
+          {mode === 'random' ? (
+            <>
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span>Longitud:</span>
+                  <span className="font-mono font-bold text-indigo-400">{length} caracteres</span>
+                </div>
+                <input
+                  type="range"
+                  min={8}
+                  max={64}
+                  value={length}
+                  onChange={(e) => setLength(Number(e.target.value))}
+                  className="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
+                />
               </div>
-              <input
-                type="range"
-                min="8"
-                max="64"
-                value={length}
-                onChange={(e) => setLength(Number(e.target.value))}
-                className="w-full accent-emerald-500"
-              />
-            </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <label className="flex items-center gap-2 p-2 rounded-lg bg-gray-950 border border-gray-800 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeUpper}
-                  onChange={(e) => setIncludeUpper(e.target.checked)}
-                  className="accent-emerald-500 rounded"
-                />
-                <span className="text-gray-300">Mayúsculas (A-Z)</span>
-              </label>
-
-              <label className="flex items-center gap-2 p-2 rounded-lg bg-gray-950 border border-gray-800 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeLower}
-                  onChange={(e) => setIncludeLower(e.target.checked)}
-                  className="accent-emerald-500 rounded"
-                />
-                <span className="text-gray-300">Minúsculas (a-z)</span>
-              </label>
-
-              <label className="flex items-center gap-2 p-2 rounded-lg bg-gray-950 border border-gray-800 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeNumbers}
-                  onChange={(e) => setIncludeNumbers(e.target.checked)}
-                  className="accent-emerald-500 rounded"
-                />
-                <span className="text-gray-300">Números (0-9)</span>
-              </label>
-
-              <label className="flex items-center gap-2 p-2 rounded-lg bg-gray-950 border border-gray-800 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeSymbols}
-                  onChange={(e) => setIncludeSymbols(e.target.checked)}
-                  className="accent-emerald-500 rounded"
-                />
-                <span className="text-gray-300">Símbolos (!@#$)</span>
-              </label>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4 mb-6">
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={includeUpper}
+                    onChange={(e) => setIncludeUpper(e.target.checked)}
+                    className="rounded accent-indigo-500 bg-slate-900 border-slate-700"
+                  />
+                  <span>Mayúsculas (A-Z)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={includeLower}
+                    onChange={(e) => setIncludeLower(e.target.checked)}
+                    className="rounded accent-indigo-500 bg-slate-900 border-slate-700"
+                  />
+                  <span>Minúsculas (a-z)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={includeNumbers}
+                    onChange={(e) => setIncludeNumbers(e.target.checked)}
+                    className="rounded accent-indigo-500 bg-slate-900 border-slate-700"
+                  />
+                  <span>Números (0-9)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={includeSymbols}
+                    onChange={(e) => setIncludeSymbols(e.target.checked)}
+                    className="rounded accent-indigo-500 bg-slate-900 border-slate-700"
+                  />
+                  <span>Símbolos (!@#$)</span>
+                </label>
+              </div>
+            </>
+          ) : (
             <div>
-              <div className="flex justify-between text-xs text-gray-300 mb-1">
+              <div className="flex justify-between mb-1">
                 <span>Cantidad de palabras:</span>
-                <span className="font-bold text-white">{wordCount}</span>
+                <span className="font-mono font-bold text-indigo-400">{wordCount} palabras</span>
               </div>
               <input
                 type="range"
-                min="3"
-                max="8"
+                min={3}
+                max={8}
                 value={wordCount}
                 onChange={(e) => setWordCount(Number(e.target.value))}
-                className="w-full accent-cyan-500"
+                className="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
               />
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        <div className="flex gap-2">
+        {/* Footer actions */}
+        <div className="flex justify-end gap-2 pt-3 border-t border-slate-800/80">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
+          >
+            Cerrar
+          </button>
           {onSelectPassword && (
             <button
               onClick={() => {
                 onSelectPassword(generatedPassword);
                 onClose();
               }}
-              className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-semibold shadow-md shadow-indigo-950/50 transition flex items-center gap-1.5"
             >
-              Usar Contraseña
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Usar esta Contraseña</span>
             </button>
           )}
-          <button
-            onClick={handleCopy}
-            className="flex-1 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-white text-sm font-semibold border border-gray-700 transition flex items-center justify-center gap-1.5"
-          >
-            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            <span>{copied ? 'Copiada' : 'Copiar'}</span>
-          </button>
         </div>
       </div>
     </div>

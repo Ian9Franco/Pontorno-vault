@@ -39,49 +39,49 @@ export const PlatformSelectModal: React.FC<PlatformSelectModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-md">
-      <div className="w-full max-w-2xl bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl p-5 sm:p-6 animate-slide-up flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
+      <div className="w-full max-w-2xl bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-5 sm:p-6 animate-slide-up flex flex-col max-h-[85vh]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-gray-800 flex-shrink-0">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+            <div className="p-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
               <Layers className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Catálogo de Plataformas y Servicios</h3>
-              <p className="text-xs text-gray-400">Elige un servicio para asignar su logo oficial y URL</p>
+              <h3 className="text-base font-bold text-slate-100">Catálogo de Servicios</h3>
+              <p className="text-xs text-slate-400">Selecciona un servicio para asignar su ícono oficial y dirección</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-white">
+          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Search & Categories */}
-        <div className="py-3 space-y-3 flex-shrink-0">
+        <div className="py-4 space-y-3 flex-shrink-0">
           <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
             <input
               type="text"
-              placeholder="Buscar plataforma (Netflix, Disney+, Gmail, Spotify, Steam, etc.)..."
+              placeholder="Buscar servicio (ej. Disney+, Netflix, ChatGPT, Gmail, Spotify...)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-950 border border-gray-700 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs shadow-sm"
               autoFocus
             />
           </div>
 
-          {/* Category Pills */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+          {/* Category tabs */}
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
                   selectedCategory === cat
-                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-950'
-                    : 'bg-gray-950 text-gray-400 hover:bg-gray-800 hover:text-gray-200 border border-gray-800'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800'
                 }`}
               >
                 {cat}
@@ -90,52 +90,41 @@ export const PlatformSelectModal: React.FC<PlatformSelectModalProps> = ({
           </div>
         </div>
 
-        {/* Scrollable Platform Grid */}
-        <div className="overflow-y-auto pr-1 flex-1 min-h-[300px]">
-          {filteredPlatforms.length === 0 ? (
-            <div className="h-48 flex flex-col items-center justify-center text-center text-gray-500 text-xs">
-              <Globe className="w-8 h-8 mb-2 opacity-50" />
-              <span>No se encontraron plataformas coincidentes</span>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-              {filteredPlatforms.map((platform) => {
-                return (
-                  <button
-                    key={platform.id}
-                    type="button"
-                    onClick={() => {
-                      onSelect(platform);
-                      onClose();
-                    }}
-                    className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gray-950/70 border border-gray-800/80 hover:border-emerald-500/50 hover:bg-gray-800/80 transition group text-left"
-                  >
-                    <PlatformIcon
-                      platformName={platform.name}
-                      url={platform.domain}
-                      size="sm"
-                      className="group-hover:scale-105"
-                    />
+        {/* Platform Grid */}
+        <div className="overflow-y-auto flex-1 pr-1 grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+          {filteredPlatforms.map((platform) => (
+            <button
+              key={platform.name}
+              type="button"
+              onClick={() => {
+                onSelect(platform);
+                onClose();
+              }}
+              className="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 hover:border-indigo-500/50 hover:bg-slate-900 transition text-left group shadow-sm"
+            >
+              <PlatformIcon
+                platformName={platform.name}
+                url={`https://${platform.domain}`}
+                size="md"
+                className="group-hover:scale-105 transition"
+              />
+              <div className="min-w-0">
+                <span className="text-xs font-semibold text-slate-200 block truncate group-hover:text-indigo-300 transition">
+                  {platform.name}
+                </span>
+                <span className="text-[11px] text-slate-400 block truncate">
+                  {platform.domain}
+                </span>
+              </div>
+            </button>
+          ))}
 
-                    <div className="truncate min-w-0">
-                      <h4 className="text-xs font-semibold text-gray-200 group-hover:text-emerald-300 truncate">
-                        {platform.name}
-                      </h4>
-                      <span className="text-[10px] text-gray-500 truncate block">
-                        {platform.domain}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
+          {filteredPlatforms.length === 0 && (
+            <div className="col-span-full py-12 text-center text-slate-400 text-xs">
+              <Globe className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+              No se encontraron servicios que coincidan con tu búsqueda.
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="pt-3 border-t border-gray-800 text-[11px] text-gray-500 flex justify-between items-center flex-shrink-0">
-          <span>{filteredPlatforms.length} plataformas disponibles</span>
-          <span>¿No está en la lista? Puedes escribir cualquier nombre personalizado</span>
         </div>
       </div>
     </div>
