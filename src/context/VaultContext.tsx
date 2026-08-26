@@ -221,15 +221,15 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     init();
 
     if (isSupabaseConfigured && supabase) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         const currentUser = session?.user || null;
         setUser(currentUser);
-        if (!currentUser) {
+        if (event === 'SIGNED_OUT' || !currentUser) {
           lock();
           setUserProfile(null);
           userCryptoDataRef.current = null;
           setIsConfigured(false);
-        } else {
+        } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
           await fetchProfile(currentUser);
           await checkUserCryptoStatus(currentUser);
         }
@@ -278,32 +278,113 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
     if (isSupabaseConfigured && supabase && currentUser) {
       // 1. Fetch user's vaults from Supabase
-      const { data: memberData, error: memberError } = await supabase
-        .from('vault_members')
-        .select('vault_id, encrypted_vault_key, nonce, permissions, vaults ( id, name, type )');
-      if (memberError) throw memberError;
+      try {
+        const { data: memberData, error: memberError } = await supabase
+          .from('vault_members')
+          .select('vault_id, encrypted_vault_key, nonce, permissions, vaults ( id, name, type )');
 
-      if (memberData) {
-        for (const row of memberData as any[]) {
-          const vault = row.vaults;
-          if (!vault) continue;
+        if (!memberError && memberData && memberData.length > 0) {
+          for (const row of memberData as any[]) {
+            const vault = row.vaults;
+            if (!vault) continue;
 
-          try {
-            const unwrappedKey = await unwrapVaultKey(
-              row.encrypted_vault_key,
-              row.nonce,
-              userMasterKey
-            );
-            newVaultKeys.set(vault.id, unwrappedKey);
-            decryptedVaultEntities.push({
-              id: vault.id,
-              name: vault.name,
-              type: vault.type,
-              permissions: row.permissions,
-            });
-          } catch (e) {
-            console.error('Error unwrapping vault key for', vault.name, e);
+            try {
+              const unwrappedKey = await unwrapVaultKey(
+                row.encrypted_vault_key,
+                row.nonce,
+                userMasterKey
+              );
+              newVaultKeys.set(vault.id, unwrappedKey);
+              decryptedVaultEntities.push({
+                id: vault.id,
+                name: vault.name,
+                type: vault.type,
+                permissions: row.permissions,
+              });
+            } catch (e) {
+              console.error('Error unwrapping vault key for', vault.name, e);
+            }
           }
+        }
+      } catch (err) {
+        console.error('Error fetching vault memberships:', err);
+      }
+
+      // Auto-fallback: If no vaults were returned (e.g. fresh user or missing vault rows)
+      if (decryptedVaultEntities.length === 0) {
+        try {
+          // Create Personal Vault
+          const personalVaultKey = await createVaultKey();
+          const wrappedPersonal = await wrapVaultKeyForUser(personalVaultKey, userMasterKey);
+          const { data: pvData } = await supabase
+            .from('vaults')
+            .insert({
+              owner_user_id: currentUser.id,
+              name: 'Bóveda Personal',
+              type: 'PERSONAL',
+            })
+            .select()
+            .single();
+
+          if (pvData) {
+            await supabase.from('vault_members').upsert({
+              vault_id: pvData.id,
+              user_id: currentUser.id,
+              encrypted_vault_key: wrappedPersonal.ciphertext,
+              nonce: wrappedPersonal.nonce,
+              permissions: 'ADMIN',
+            });
+            newVaultKeys.set(pvData.id, personalVaultKey);
+            decryptedVaultEntities.push({
+              id: pvData.id,
+              name: pvData.name,
+              type: 'PERSONAL',
+              permissions: 'ADMIN',
+            });
+          }
+
+          // Create or join Shared Family Vault
+          const { data: existingFamily } = await supabase
+            .from('vaults')
+            .select('id, name')
+            .eq('type', 'SHARED')
+            .maybeSingle();
+
+          let familyVaultId = existingFamily?.id;
+          const familyVaultKey = await createVaultKey();
+          const wrappedFamily = await wrapVaultKeyForUser(familyVaultKey, userMasterKey);
+
+          if (!familyVaultId) {
+            const { data: fvData } = await supabase
+              .from('vaults')
+              .insert({
+                owner_user_id: currentUser.id,
+                name: 'Bóveda Familiar Pontorno',
+                type: 'SHARED',
+              })
+              .select()
+              .single();
+            if (fvData) familyVaultId = fvData.id;
+          }
+
+          if (familyVaultId) {
+            await supabase.from('vault_members').upsert({
+              vault_id: familyVaultId,
+              user_id: currentUser.id,
+              encrypted_vault_key: wrappedFamily.ciphertext,
+              nonce: wrappedFamily.nonce,
+              permissions: 'ADMIN',
+            });
+            newVaultKeys.set(familyVaultId, familyVaultKey);
+            decryptedVaultEntities.push({
+              id: familyVaultId,
+              name: 'Bóveda Familiar Pontorno',
+              type: 'SHARED',
+              permissions: 'ADMIN',
+            });
+          }
+        } catch (autoErr) {
+          console.error('Error auto-creating default vaults in Supabase:', autoErr);
         }
       }
 
