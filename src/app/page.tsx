@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { useVault } from '@/context/VaultContext';
 import { Navbar } from '@/components/Navbar';
 import { AuthModal } from '@/components/AuthModal';
-import { OnboardingModal } from '@/components/OnboardingModal';
 import { UnlockModal } from '@/components/UnlockModal';
 import { VaultView } from '@/components/VaultView';
 import { CredentialModal } from '@/components/CredentialModal';
@@ -15,7 +14,6 @@ import { CredentialPayload } from '@/lib/crypto';
 export default function Home() {
   const {
     user,
-    isConfigured,
     isUnlocked,
     isLoading,
     isSupabaseConnected,
@@ -42,14 +40,14 @@ export default function Home() {
       <div className="min-h-screen flex items-center justify-center bg-gray-950">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-          <span className="text-xs text-gray-400 font-medium tracking-wide">Cargando estado criptográfico...</span>
+          <span className="text-xs text-gray-400 font-medium tracking-wide">Cargando Bóveda Familiar...</span>
         </div>
       </div>
     );
   }
 
-  // 1. If Supabase is connected but user is not logged in
-  const needsAuth = isSupabaseConnected && !user;
+  // Not logged in -> Show Unified Auth (Email, Display Name, Master Password)
+  const isLoggedOut = isSupabaseConnected ? !user : !isUnlocked;
 
   return (
     <main className="min-h-screen bg-[#090d16] flex flex-col">
@@ -58,17 +56,14 @@ export default function Home() {
         onOpenSettings={() => setIsSettingsModalOpen(true)}
       />
 
-      {/* State 0: Supabase Authentication */}
-      {needsAuth && <AuthModal />}
+      {/* State 1: Unified Auth (Register / Login in 1 Step) */}
+      {isLoggedOut && <AuthModal />}
 
-      {/* State 1: New User / First Time Master Password Setup */}
-      {!needsAuth && !isConfigured && <OnboardingModal />}
+      {/* State 2: Logged in to Supabase but Vault is Locked by Auto-Lock Timeout */}
+      {!isLoggedOut && !isUnlocked && <UnlockModal />}
 
-      {/* State 2: Existing User / Vault Locked */}
-      {!needsAuth && isConfigured && !isUnlocked && <UnlockModal />}
-
-      {/* State 3: Vault Unlocked */}
-      {!needsAuth && isConfigured && isUnlocked && (
+      {/* State 3: Vault Unlocked & Active */}
+      {!isLoggedOut && isUnlocked && (
         <VaultView
           onAddCredential={handleOpenAddCredential}
           onEditCredential={handleOpenEditCredential}

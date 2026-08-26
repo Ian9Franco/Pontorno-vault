@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useVault } from '@/context/VaultContext';
-import { KeyRound, Shield, Clock, Database, Check, X, RefreshCw, AlertCircle } from 'lucide-react';
+import { KeyRound, Shield, Clock, Database, Check, X, RefreshCw, User, Edit3 } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -11,11 +11,16 @@ interface SettingsModalProps {
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const {
+    userProfile,
+    updateDisplayName,
     autoLockMinutes,
     setAutoLockMinutes,
     changeMasterPassword,
     isSupabaseConnected,
   } = useVault();
+
+  const [displayName, setDisplayName] = useState(userProfile?.displayName || '');
+  const [nameSaved, setNameSaved] = useState(false);
 
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -25,6 +30,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [rotateError, setRotateError] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (displayName.trim()) {
+      await updateDisplayName(displayName.trim());
+      setNameSaved(true);
+      setTimeout(() => setNameSaved(false), 2500);
+    }
+  };
 
   const handleRotate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +74,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
       <div className="w-full max-w-lg bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-800">
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <Shield className="w-5 h-5 text-emerald-400" /> Configuración de Seguridad
+            <Shield className="w-5 h-5 text-emerald-400" /> Configuración de Usuario y Seguridad
           </h3>
           <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-white">
             <X className="w-5 h-5" />
@@ -68,13 +82,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         </div>
 
         <div className="space-y-6">
-          {/* Auto-Lock Settings */}
+          {/* Edit User Profile Name */}
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2 flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-cyan-400" /> Tiempo de Bloqueo Automático
+              <User className="w-4 h-4 text-emerald-400" /> Perfil del Miembro Familiar
             </h4>
             <p className="text-xs text-gray-400 mb-3">
-              La bóveda destruirá automáticamente las claves en memoria tras un periodo de inactividad.
+              Este nombre identifica quién agregó o editó cada contraseña en la bóveda familiar.
+            </p>
+
+            {nameSaved && (
+              <div className="mb-3 p-2.5 rounded-lg bg-emerald-950/50 border border-emerald-800/40 text-emerald-300 text-xs flex items-center gap-2">
+                <Check className="w-4 h-4" />
+                <span>Nombre de usuario actualizado con éxito.</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveProfile} className="flex gap-2">
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Tu nombre o alias (ej. Ian, Papá, Mamá)..."
+                className="flex-1 px-3.5 py-2.5 bg-gray-950 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+                required
+              />
+              <button
+                type="submit"
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Guardar</span>
+              </button>
+            </form>
+          </div>
+
+          {/* Auto-Lock Settings */}
+          <div className="pt-4 border-t border-gray-800">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2 flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-cyan-400" /> Bloqueo Automático por Inactividad
+            </h4>
+            <p className="text-xs text-gray-400 mb-3">
+              Destruye las claves y datos descifrados en memoria RAM tras un periodo de inactividad.
             </p>
             <div className="grid grid-cols-4 gap-2">
               {[1, 5, 15, 30].map((mins) => (
@@ -84,7 +133,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   onClick={() => setAutoLockMinutes(mins)}
                   className={`py-2 text-xs font-semibold rounded-xl border transition ${
                     autoLockMinutes === mins
-                      ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300'
+                      ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300 font-bold'
                       : 'bg-gray-950 border-gray-800 text-gray-400 hover:text-white'
                   }`}
                 >
@@ -97,10 +146,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           {/* Master Password Rotation */}
           <div className="pt-4 border-t border-gray-800">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2 flex items-center gap-1.5">
-              <KeyRound className="w-4 h-4 text-emerald-400" /> Cambiar Contraseña Maestra (Re-wrapping)
+              <KeyRound className="w-4 h-4 text-emerald-400" /> Cambiar Contraseña Maestra
             </h4>
             <p className="text-xs text-gray-400 mb-3">
-              Gracias al Envelope Encryption, cambiar tu contraseña maestra solo re-cifra tu <code>UserMasterKey</code> con una nueva <code>KEK</code> sin modificar ninguna credencial almacenada.
+              Gracias al Envelope Encryption, cambiar tu contraseña maestra solo re-cifra tu <code>UserMasterKey</code> con una nueva <code>KEK</code> sin alterar las credenciales compartidas ni privadas.
             </p>
 
             {rotateSuccess && (
@@ -165,26 +214,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           {/* Zero-Knowledge Architecture Spec */}
           <div className="pt-4 border-t border-gray-800">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2 flex items-center gap-1.5">
-              <Database className="w-4 h-4 text-cyan-400" /> Arquitectura Criptográfica Activa
+              <Database className="w-4 h-4 text-cyan-400" /> Estado del Servidor
             </h4>
-            <div className="p-3 bg-gray-950 border border-gray-800 rounded-xl text-xs space-y-1 text-gray-400">
+            <div className="p-3 bg-gray-950 border border-gray-800 rounded-xl text-xs space-y-1.5 text-gray-400">
               <div className="flex justify-between">
-                <span>KDF:</span>
-                <span className="font-mono text-emerald-400">Argon2id (WASM, 64MB)</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Algoritmo de Bóveda:</span>
-                <span className="font-mono text-emerald-400">AES-256-GCM (128-bit Tag)</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Nonce / IV:</span>
-                <span className="font-mono text-emerald-400">96-bit CSPRNG</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Backend Storage:</span>
-                <span className="font-mono text-cyan-400">
-                  {isSupabaseConnected ? 'Supabase PostgreSQL + RLS' : 'Client Encrypted Storage (Standalone)'}
+                <span>Almacenamiento:</span>
+                <span className="font-mono text-emerald-400">
+                  {isSupabaseConnected ? 'Supabase PostgreSQL + RLS' : 'Local Standalone'}
                 </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Bóvedas activas:</span>
+                <span className="font-mono text-cyan-400">1 Familiar Compartida + 1 Personal Privada</span>
               </div>
             </div>
           </div>
