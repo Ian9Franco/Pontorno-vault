@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useVault } from '@/context/VaultContext';
+import { useVault, VaultEntity } from '@/context/VaultContext';
 import { copyToClipboardSecure } from '@/lib/security/clipboard';
 import { CredentialPayload } from '@/lib/crypto';
 import { PlatformIcon } from './PlatformIcon';
 import { OtpInboxWidget } from './OtpInboxWidget';
 import { EmailForwardingGuideModal } from './EmailForwardingGuideModal';
 import { CreateVaultModal } from './CreateVaultModal';
+import { EditVaultModal } from './EditVaultModal';
 import {
   Search,
   Plus,
@@ -23,8 +24,7 @@ import {
   Key,
   Lock,
   User,
-  Shield,
-  Sparkles,
+  Settings,
 } from 'lucide-react';
 
 interface VaultViewProps {
@@ -50,6 +50,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isCreateVaultOpen, setIsCreateVaultOpen] = useState(false);
+  const [editingVault, setEditingVault] = useState<VaultEntity | null>(null);
 
   const activeVault = vaults.find((v) => v.id === activeVaultId) || vaults[0];
 
@@ -124,23 +125,31 @@ export const VaultView: React.FC<VaultViewProps> = ({
                     const count = credentials.filter((c) => c.vaultId === vault.id).length;
 
                     return (
-                      <button
-                        key={vault.id}
-                        onClick={() => setActiveVaultId(vault.id)}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
-                          isActive
-                            ? 'bg-cyan-950/50 border border-cyan-500/50 text-cyan-200 shadow-sm'
-                            : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200 border border-transparent'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <Users className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
-                          <span className="truncate">{vault.name}</span>
-                        </div>
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-950/80 text-gray-400 font-mono">
-                          {count}
-                        </span>
-                      </button>
+                      <div key={vault.id} className="flex items-center gap-1 group">
+                        <button
+                          onClick={() => setActiveVaultId(vault.id)}
+                          className={`flex-1 flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
+                            isActive
+                              ? 'bg-cyan-950/50 border border-cyan-500/50 text-cyan-200 shadow-sm'
+                              : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200 border border-transparent'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <Users className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                            <span className="truncate">{vault.name}</span>
+                          </div>
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-950/80 text-gray-400 font-mono">
+                            {count}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => setEditingVault(vault)}
+                          className="p-1.5 rounded-lg text-gray-500 hover:text-cyan-300 hover:bg-gray-800 transition opacity-0 group-hover:opacity-100"
+                          title="Editar Bóveda"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     );
                   })
                 )}
@@ -161,23 +170,31 @@ export const VaultView: React.FC<VaultViewProps> = ({
                     const count = credentials.filter((c) => c.vaultId === vault.id).length;
 
                     return (
-                      <button
-                        key={vault.id}
-                        onClick={() => setActiveVaultId(vault.id)}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
-                          isActive
-                            ? 'bg-emerald-950/50 border border-emerald-500/50 text-emerald-200 shadow-sm'
-                            : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200 border border-transparent'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <FolderLock className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                          <span className="truncate">{vault.name}</span>
-                        </div>
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-950/80 text-gray-400 font-mono">
-                          {count}
-                        </span>
-                      </button>
+                      <div key={vault.id} className="flex items-center gap-1 group">
+                        <button
+                          onClick={() => setActiveVaultId(vault.id)}
+                          className={`flex-1 flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
+                            isActive
+                              ? 'bg-emerald-950/50 border border-emerald-500/50 text-emerald-200 shadow-sm'
+                              : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200 border border-transparent'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <FolderLock className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                            <span className="truncate">{vault.name}</span>
+                          </div>
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-950/80 text-gray-400 font-mono">
+                            {count}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => setEditingVault(vault)}
+                          className="p-1.5 rounded-lg text-gray-500 hover:text-emerald-300 hover:bg-gray-800 transition opacity-0 group-hover:opacity-100"
+                          title="Editar Bóveda"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     );
                   })
                 )}
@@ -226,6 +243,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
                     >
                       {activeVault?.type === 'SHARED' ? '👨‍👩‍👧‍👦 Familiar / Compartida' : '🔒 Privada (Solo Tú)'}
                     </span>
+                    <button
+                      onClick={() => setEditingVault(activeVault)}
+                      className="p-1 rounded text-gray-500 hover:text-white transition"
+                      title="Editar o eliminar esta bóveda"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                    </button>
                   </h3>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {activeVault?.type === 'SHARED'
@@ -235,13 +259,15 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 </div>
               </div>
 
-              <button
-                onClick={onAddCredential}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold shadow-lg shadow-emerald-950/50 transition flex-shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Añadir Credencial</span>
-              </button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={onAddCredential}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold shadow-lg shadow-emerald-950/50 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Añadir Credencial</span>
+                </button>
+              </div>
             </div>
 
             {/* Search Input */}
@@ -422,6 +448,12 @@ export const VaultView: React.FC<VaultViewProps> = ({
       <CreateVaultModal
         isOpen={isCreateVaultOpen}
         onClose={() => setIsCreateVaultOpen(false)}
+      />
+
+      <EditVaultModal
+        isOpen={Boolean(editingVault)}
+        onClose={() => setEditingVault(null)}
+        vault={editingVault}
       />
     </>
   );

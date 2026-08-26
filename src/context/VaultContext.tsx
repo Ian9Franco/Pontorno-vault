@@ -73,6 +73,8 @@ interface VaultContextType {
   saveCredential: (payload: CredentialPayload, credentialId?: string, targetVaultId?: string) => Promise<void>;
   removeCredential: (credentialId: string) => Promise<void>;
   createVault: (name: string, type: 'PERSONAL' | 'SHARED') => Promise<void>;
+  updateVault: (vaultId: string, name: string, type: 'PERSONAL' | 'SHARED') => Promise<void>;
+  removeVault: (vaultId: string) => Promise<void>;
   changeMasterPassword: (oldPass: string, newPass: string) => Promise<void>;
   updateDisplayName: (newName: string) => Promise<void>;
 }
@@ -955,6 +957,61 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     resetActivity();
   };
 
+  // Update Vault (Rename / Change Type)
+  const updateVault = async (vaultId: string, name: string, type: 'PERSONAL' | 'SHARED') => {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase
+        .from('vaults')
+        .update({ name, type, updated_at: new Date().toISOString() })
+        .eq('id', vaultId);
+      if (error) throw new Error(`Error al actualizar bóveda: ${error.message}`);
+    } else {
+      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+      if (raw) {
+        const db: StoredEncryptedDB = JSON.parse(raw);
+        const v = db.vaults.find((item) => item.id === vaultId);
+        if (v) {
+          v.name = name;
+          v.type = type;
+          localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(db));
+        }
+      }
+    }
+
+    setVaults((prev) =>
+      prev.map((v) => (v.id === vaultId ? { ...v, name, type } : v))
+    );
+    resetActivity();
+  };
+
+  // Remove Vault
+  const removeVault = async (vaultId: string) => {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('vaults').delete().eq('id', vaultId);
+      if (error) throw new Error(`Error al eliminar bóveda: ${error.message}`);
+    } else {
+      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+      if (raw) {
+        const db: StoredEncryptedDB = JSON.parse(raw);
+        db.vaults = db.vaults.filter((v) => v.id !== vaultId);
+        db.vaultMembers = db.vaultMembers.filter((vm) => vm.vaultId !== vaultId);
+        db.credentials = db.credentials.filter((c) => c.vaultId !== vaultId);
+        localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(db));
+      }
+    }
+
+    vaultKeysRef.current.delete(vaultId);
+    setCredentials((prev) => prev.filter((c) => c.vaultId !== vaultId));
+    setVaults((prev) => {
+      const remaining = prev.filter((v) => v.id !== vaultId);
+      if (activeVaultId === vaultId && remaining.length > 0) {
+        setActiveVaultId(remaining[0].id);
+      }
+      return remaining;
+    });
+    resetActivity();
+  };
+
   const updateDisplayName = async (newName: string) => {
     if (!newName.trim()) return;
     if (isSupabaseConfigured && supabase && user) {
@@ -989,6 +1046,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         saveCredential,
         removeCredential,
         createVault,
+        updateVault,
+        removeVault,
         changeMasterPassword,
         updateDisplayName,
       }}
