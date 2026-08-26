@@ -175,6 +175,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         };
         setIsConfigured(true);
       } else {
+        userCryptoDataRef.current = null;
         setIsConfigured(false);
       }
     } else {
@@ -226,7 +227,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         if (!currentUser) {
           lock();
           setUserProfile(null);
+          userCryptoDataRef.current = null;
           setIsConfigured(false);
+        } else {
+          await fetchProfile(currentUser);
+          await checkUserCryptoStatus(currentUser);
         }
       });
       return () => subscription.unsubscribe();
@@ -417,13 +422,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     resetActivity();
   }, [resetActivity]);
 
-  // Unified 1-Step Authentication (Email + DisplayName + MasterPassword)
+  // Unified Authentication (Email + DisplayName + MasterPassword)
   const unifiedAuth = async ({ email, masterPassword, displayName = 'Usuario', isSignUp }: UnifiedAuthParams) => {
     setIsLoading(true);
     try {
       if (isSupabaseConfigured && supabase) {
         if (isSignUp) {
-          // 1. Sign Up in Supabase Auth
+          // SIGN UP FLOW
           const { data: authData, error: authError } = await supabase.auth.signUp({
             email,
             password: masterPassword,
@@ -431,31 +436,40 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
               data: { display_name: displayName }
             }
           });
-          if (authError) throw authError;
-          let registeredUser = authData.user;
-          if (!registeredUser) throw new Error('No se pudo crear la cuenta');
 
-          // If session is null (e.g. email confirmation setting), sign in immediately to get active auth token
+          if (authError) {
+            if (authError.message.toLowerCase().includes('already registered')) {
+              throw new Error('Este correo ya está registrado. Por favor, selecciona "Iniciar sesión" abajo.');
+            }
+            throw new Error(`Error al registrar usuario: ${authError.message}`);
+          }
+
+          let registeredUser = authData.user;
+          if (!registeredUser) throw new Error('No se pudo crear el usuario en Supabase');
+
+          // Ensure active session token
           if (!authData.session) {
-            const { data: sData } = await supabase.auth.signInWithPassword({
+            const { data: sData, error: sErr } = await supabase.auth.signInWithPassword({
               email,
               password: masterPassword,
             });
             if (sData?.user) {
               registeredUser = sData.user;
+            } else if (sErr) {
+              console.warn('Auto sign-in notice:', sErr.message);
             }
           }
 
           setUser(registeredUser);
           setUserProfile({ id: registeredUser.id, email, displayName });
 
-          // 2. Save profile
+          // Save profile
           await supabase.from('profiles').upsert({
             id: registeredUser.id,
             display_name: displayName,
           });
 
-          // 3. Cryptographic Identity Setup
+          // Generate Zero-Knowledge crypto setup
           const { setup, userMasterKey } = await setupUserCrypto(masterPassword);
           userMasterKeyRef.current = userMasterKey;
           userCryptoDataRef.current = setup;
@@ -469,24 +483,22 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
             kdf_parameters: setup.kdfParameters,
             crypto_version: setup.cryptoVersion,
           });
+
           if (cryptoError) {
             console.error('Error in user_crypto upsert:', cryptoError);
-            throw new Error(`Error al guardar clave criptográfica: ${cryptoError.message}`);
+            throw new Error(`Error al guardar configuración criptográfica: ${cryptoError.message}`);
           }
 
-          // 4. Create or Join Shared Family Vault
-          let familyVaultId: string | null = null;
-          let familyVaultKey: CryptoKey | null = null;
-
+          // Create or join shared family vault
           const { data: existingFamilyVault } = await supabase
             .from('vaults')
             .select('id, name')
             .eq('type', 'SHARED')
             .maybeSingle();
 
+          let familyVaultId: string;
           if (!existingFamilyVault) {
-            // First member creates the Shared Family Vault
-            familyVaultKey = await createVaultKey();
+            const familyVaultKey = await createVaultKey();
             const { data: newVault, error: vErr } = await supabase
               .from('vaults')
               .insert({
@@ -509,7 +521,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
             });
           } else {
             familyVaultId = existingFamilyVault.id;
-            familyVaultKey = await createVaultKey();
+            const familyVaultKey = await createVaultKey();
             const wrappedFamilyKey = await wrapVaultKeyForUser(familyVaultKey, userMasterKey);
             await supabase.from('vault_members').upsert({
               vault_id: familyVaultId,
@@ -520,7 +532,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
             });
           }
 
-          // 5. Create Private Personal Vault for this user
+          // Create private personal vault
           const personalVaultKey = await createVaultKey();
           const { data: personalVault, error: pvErr } = await supabase
             .from('vaults')
@@ -530,7 +542,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
               type: 'PERSONAL',
             })
             .select()
-            .single();
+              .single();
           if (pvErr) throw pvErr;
 
           const wrappedPersonalKey = await wrapVaultKeyForUser(personalVaultKey, userMasterKey);
@@ -550,7 +562,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
             email,
             password: masterPassword,
           });
-          if (authError) throw authError;
+
+          if (authError) {
+            if (authError.message.toLowerCase().includes('invalid login credentials')) {
+              throw new Error('Correo o contraseña incorrectos. Si no tienes cuenta aún, haz clic en "Registrarse".');
+            }
+            throw new Error(`Error al iniciar sesión: ${authError.message}`);
+          }
+
           const loggedInUser = authData.user;
           if (!loggedInUser) throw new Error('Error al iniciar sesión');
 
@@ -568,7 +587,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
           let userMasterKey: CryptoKey;
 
           if (!cryptoData) {
-            // Auto-heal: User existed in Supabase Auth but had not generated user_crypto yet
+            // Auto-heal: initialize crypto keys for existing user
             const { setup, userMasterKey: newKey } = await setupUserCrypto(masterPassword);
             userMasterKey = newKey;
             userCryptoRecord = setup;
@@ -690,14 +709,62 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Unlock Vault (when already authenticated but locked by timeout)
+  // Unlock Vault (when already authenticated in Supabase but vault is locked)
   const unlock = async (masterPassword: string) => {
     setIsLoading(true);
     try {
-      const cryptoRecord = userCryptoDataRef.current;
-      if (!cryptoRecord) throw new Error('No crypto configuration found');
+      let cryptoRecord = userCryptoDataRef.current;
 
-      const userMasterKey = await unlockUserMasterKey(masterPassword, cryptoRecord);
+      if (!cryptoRecord && isSupabaseConfigured && supabase && user) {
+        const { data: cryptoData } = await supabase
+          .from('user_crypto')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (cryptoData) {
+          cryptoRecord = {
+            kdfSalt: cryptoData.kdf_salt,
+            kdfAlgorithm: cryptoData.kdf_algorithm,
+            kdfParameters: cryptoData.kdf_parameters,
+            encryptedUserKey: cryptoData.encrypted_user_key,
+            userKeyNonce: cryptoData.user_key_nonce,
+            cryptoVersion: cryptoData.crypto_version,
+          };
+          userCryptoDataRef.current = cryptoRecord;
+        } else {
+          // Auto-heal: User exists in Supabase but user_crypto was missing
+          const { setup, userMasterKey } = await setupUserCrypto(masterPassword);
+          userMasterKeyRef.current = userMasterKey;
+          userCryptoDataRef.current = setup;
+
+          await supabase.from('user_crypto').upsert({
+            user_id: user.id,
+            encrypted_user_key: setup.encryptedUserKey,
+            user_key_nonce: setup.userKeyNonce,
+            kdf_salt: setup.kdfSalt,
+            kdf_algorithm: setup.kdfAlgorithm,
+            kdf_parameters: setup.kdfParameters,
+            crypto_version: setup.cryptoVersion,
+          });
+
+          setIsConfigured(true);
+          await decryptVaultsAndCredentials(userMasterKey, user);
+          return;
+        }
+      }
+
+      if (!cryptoRecord) {
+        throw new Error('No se encontró configuración criptográfica. Por favor, cierra sesión y vuelve a registrarte.');
+      }
+
+      let userMasterKey: CryptoKey;
+      try {
+        userMasterKey = await unlockUserMasterKey(masterPassword, cryptoRecord);
+      } catch {
+        throw new Error('Contraseña maestra incorrecta.');
+      }
+
       userMasterKeyRef.current = userMasterKey;
       await decryptVaultsAndCredentials(userMasterKey, user);
     } finally {
@@ -712,6 +779,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null);
     setUserProfile(null);
+    userCryptoDataRef.current = null;
     setIsConfigured(false);
   };
 

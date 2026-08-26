@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useVault } from '@/context/VaultContext';
-import { Lock, Unlock, Eye, EyeOff, User, LogOut } from 'lucide-react';
+import { Lock, Unlock, Eye, EyeOff, LogOut } from 'lucide-react';
 
 export const UnlockModal: React.FC = () => {
   const { unlock, isLoading, user, userProfile, signOut } = useVault();
@@ -16,8 +16,8 @@ export const UnlockModal: React.FC = () => {
 
     try {
       await unlock(password);
-    } catch {
-      setError('Contraseña maestra incorrecta. Verificación criptográfica fallida.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Contraseña maestra incorrecta.');
     }
   };
 
