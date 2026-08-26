@@ -1,0 +1,674 @@
+'use client';
+
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import {
+  CredentialPayload,
+  EncryptedData,
+  UserCryptoSetup,
+  createVaultKey,
+  decryptCredential,
+  encryptCredential,
+  rotateMasterPassword,
+  setupUserCrypto,
+  unlockUserMasterKey,
+  unwrapVaultKey,
+  wrapVaultKeyForUser,
+} from '@/lib/crypto';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase/client';
+import { User } from '@supabase/supabase-js';
+
+export interface VaultItem {
+  id: string;
+  vaultId: string;
+  payload: CredentialPayload;
+  updatedAt: string;
+}
+
+export interface VaultEntity {
+  id: string;
+  name: string;
+  type: 'PERSONAL' | 'SHARED';
+  permissions: 'READ' | 'WRITE' | 'ADMIN';
+}
+
+interface VaultContextType {
+  user: User | null;
+  isUnlocked: boolean;
+  isConfigured: boolean;
+  isSupabaseConnected: boolean;
+  activeVaultId: string | null;
+  vaults: VaultEntity[];
+  credentials: VaultItem[];
+  isLoading: boolean;
+  autoLockMinutes: number;
+  timeRemainingSeconds: number;
+  setActiveVaultId: (id: string) => void;
+  setAutoLockMinutes: (minutes: number) => void;
+  signUpWithSupabase: (email: string, password: string, displayName?: string) => Promise<void>;
+  signInWithSupabase: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  setupAccount: (masterPassword: string) => Promise<void>;
+  unlock: (masterPassword: string) => Promise<void>;
+  lock: () => void;
+  saveCredential: (payload: CredentialPayload, credentialId?: string) => Promise<void>;
+  removeCredential: (credentialId: string) => Promise<void>;
+  addSharedVault: (name: string) => Promise<void>;
+  changeMasterPassword: (oldPass: string, newPass: string) => Promise<void>;
+}
+
+const VaultContext = createContext<VaultContextType | null>(null);
+
+const DEMO_STORAGE_KEY = 'family_vault_encrypted_store_v1';
+
+interface StoredEncryptedDB {
+  userCrypto: UserCryptoSetup | null;
+  vaults: Array<{ id: string; name: string; type: 'PERSONAL' | 'SHARED' }>;
+  vaultMembers: Array<{ vaultId: string; userId: string; encryptedVaultKey: string; nonce: string; permissions: 'READ' | 'WRITE' | 'ADMIN' }>;
+  credentials: Array<{ id: string; vaultId: string; encryptedPayload: string; nonce: string; cryptoVersion: number; updatedAt: string }>;
+}
+
+export function VaultProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(false);
+  const [activeVaultId, setActiveVaultId] = useState<string | null>(null);
+  const [vaults, setVaults] = useState<VaultEntity[]>([]);
+  const [credentials, setCredentials] = useState<VaultItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [autoLockMinutes, setAutoLockMinutesState] = useState(5);
+  const [timeRemainingSeconds, setTimeRemainingSeconds] = useState(300);
+
+  // In-memory cryptographic session (cleared immediately upon lock)
+  const userMasterKeyRef = useRef<CryptoKey | null>(null);
+  const vaultKeysRef = useRef<Map<string, CryptoKey>>(new Map());
+  const userCryptoDataRef = useRef<UserCryptoSetup | null>(null);
+  const lastActivityRef = useRef<number>(Date.now());
+
+  // Lock function: wipes plaintext keys from memory
+  const lock = useCallback(() => {
+    userMasterKeyRef.current = null;
+    vaultKeysRef.current.clear();
+    setCredentials([]);
+    setIsUnlocked(false);
+  }, []);
+
+  // Check Supabase session & user_crypto configuration
+  const checkUserCryptoStatus = useCallback(async (currentUser: User | null) => {
+    if (isSupabaseConfigured && supabase && currentUser) {
+      const { data, error } = await supabase
+        .from('user_crypto')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+
+      if (data && !error) {
+        userCryptoDataRef.current = {
+          kdfSalt: data.kdf_salt,
+          kdfAlgorithm: data.kdf_algorithm,
+          kdfParameters: data.kdf_parameters,
+          encryptedUserKey: data.encrypted_user_key,
+          userKeyNonce: data.user_key_nonce,
+          cryptoVersion: data.crypto_version,
+        };
+        setIsConfigured(true);
+      } else {
+        setIsConfigured(false);
+      }
+    } else {
+      // Local fallback mode
+      try {
+        const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+        if (raw) {
+          const parsed: StoredEncryptedDB = JSON.parse(raw);
+          if (parsed.userCrypto) {
+            userCryptoDataRef.current = parsed.userCrypto;
+            setIsConfigured(true);
+          }
+        }
+      } catch (e) {
+        console.error('Error reading storage state', e);
+      }
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    const init = async () => {
+      try {
+        if (isSupabaseConfigured && supabase) {
+          const { data: { session } } = await supabase.auth.getSession();
+          const currentUser = session?.user || null;
+          setUser(currentUser);
+          if (currentUser) {
+            await checkUserCryptoStatus(currentUser);
+          }
+        } else {
+          await checkUserCryptoStatus(null);
+        }
+      } catch (e) {
+        console.error('Error initializing auth state', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    init();
+
+    if (isSupabaseConfigured && supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const currentUser = session?.user || null;
+        setUser(currentUser);
+        lock();
+        if (currentUser) {
+          await checkUserCryptoStatus(currentUser);
+        } else {
+          setIsConfigured(false);
+        }
+      });
+      return () => subscription.unsubscribe();
+    }
+  }, [checkUserCryptoStatus, lock]);
+
+  // Activity tracker for Auto-Lock
+  const resetActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    setTimeRemainingSeconds(autoLockMinutes * 60);
+  }, [autoLockMinutes]);
+
+  useEffect(() => {
+    if (!isUnlocked) return;
+
+    const interval = setInterval(() => {
+      const elapsedSec = Math.floor((Date.now() - lastActivityRef.current) / 1000);
+      const remaining = Math.max(0, autoLockMinutes * 60 - elapsedSec);
+      setTimeRemainingSeconds(remaining);
+
+      if (remaining <= 0) {
+        lock();
+      }
+    }, 1000);
+
+    const onUserActivity = () => resetActivity();
+    window.addEventListener('mousemove', onUserActivity);
+    window.addEventListener('keydown', onUserActivity);
+    window.addEventListener('touchstart', onUserActivity);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('mousemove', onUserActivity);
+      window.removeEventListener('keydown', onUserActivity);
+      window.removeEventListener('touchstart', onUserActivity);
+    };
+  }, [isUnlocked, autoLockMinutes, lock, resetActivity]);
+
+  // Supabase Auth Methods
+  const signUpWithSupabase = async (email: string, pass: string, displayName = 'Usuario') => {
+    if (!supabase) throw new Error('Supabase no está configurado');
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password: pass,
+    });
+    if (error) throw error;
+    if (data.user) {
+      setUser(data.user);
+      // Create profile row
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        display_name: displayName,
+      });
+      await checkUserCryptoStatus(data.user);
+    }
+  };
+
+  const signInWithSupabase = async (email: string, pass: string) => {
+    if (!supabase) throw new Error('Supabase no está configurado');
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: pass,
+    });
+    if (error) throw error;
+    if (data.user) {
+      setUser(data.user);
+      await checkUserCryptoStatus(data.user);
+    }
+  };
+
+  const signOut = async () => {
+    lock();
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    setUser(null);
+    setIsConfigured(false);
+  };
+
+  // Setup Master Password (Zero-Knowledge Account Setup)
+  const setupAccount = async (masterPassword: string) => {
+    setIsLoading(true);
+    try {
+      const { setup, userMasterKey } = await setupUserCrypto(masterPassword);
+      userMasterKeyRef.current = userMasterKey;
+      userCryptoDataRef.current = setup;
+
+      const personalVaultKey = await createVaultKey();
+      const wrappedVaultKey = await wrapVaultKeyForUser(personalVaultKey, userMasterKey);
+
+      if (isSupabaseConfigured && supabase && user) {
+        // Save to Supabase tables
+        const { error: cryptoError } = await supabase.from('user_crypto').insert({
+          user_id: user.id,
+          encrypted_user_key: setup.encryptedUserKey,
+          user_key_nonce: setup.userKeyNonce,
+          kdf_salt: setup.kdfSalt,
+          kdf_algorithm: setup.kdfAlgorithm,
+          kdf_parameters: setup.kdfParameters,
+          crypto_version: setup.cryptoVersion,
+        });
+        if (cryptoError) throw cryptoError;
+
+        // Create default personal vault
+        const { data: vaultData, error: vaultError } = await supabase
+          .from('vaults')
+          .insert({
+            owner_user_id: user.id,
+            name: 'Bóveda Personal',
+            type: 'PERSONAL',
+          })
+          .select()
+          .single();
+        if (vaultError) throw vaultError;
+
+        // Create vault membership with wrapped key
+        const { error: memberError } = await supabase.from('vault_members').insert({
+          vault_id: vaultData.id,
+          user_id: user.id,
+          encrypted_vault_key: wrappedVaultKey.ciphertext,
+          nonce: wrappedVaultKey.nonce,
+          permissions: 'ADMIN',
+        });
+        if (memberError) throw memberError;
+
+        vaultKeysRef.current.set(vaultData.id, personalVaultKey);
+        setVaults([{ id: vaultData.id, name: 'Bóveda Personal', type: 'PERSONAL', permissions: 'ADMIN' }]);
+        setActiveVaultId(vaultData.id);
+      } else {
+        // Fallback local storage
+        const personalVaultId = 'vault-personal-' + Date.now();
+        vaultKeysRef.current.set(personalVaultId, personalVaultKey);
+
+        const db: StoredEncryptedDB = {
+          userCrypto: setup,
+          vaults: [{ id: personalVaultId, name: 'Bóveda Personal', type: 'PERSONAL' }],
+          vaultMembers: [
+            {
+              vaultId: personalVaultId,
+              userId: 'local-user',
+              encryptedVaultKey: wrappedVaultKey.ciphertext,
+              nonce: wrappedVaultKey.nonce,
+              permissions: 'ADMIN',
+            },
+          ],
+          credentials: [],
+        };
+        localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(db));
+        setVaults([{ id: personalVaultId, name: 'Bóveda Personal', type: 'PERSONAL', permissions: 'ADMIN' }]);
+        setActiveVaultId(personalVaultId);
+      }
+
+      setCredentials([]);
+      setIsConfigured(true);
+      setIsUnlocked(true);
+      resetActivity();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Unlock Vault
+  const unlock = async (masterPassword: string) => {
+    setIsLoading(true);
+    try {
+      const cryptoRecord = userCryptoDataRef.current;
+      if (!cryptoRecord) throw new Error('No crypto configuration found');
+
+      // 1. Derive KEK and unwrap UserMasterKey
+      const userMasterKey = await unlockUserMasterKey(masterPassword, cryptoRecord);
+      userMasterKeyRef.current = userMasterKey;
+
+      const decryptedVaultEntities: VaultEntity[] = [];
+      const newVaultKeys = new Map<string, CryptoKey>();
+      const decryptedCredentials: VaultItem[] = [];
+
+      if (isSupabaseConfigured && supabase && user) {
+        // 2. Fetch user's vaults from Supabase
+        const { data: memberData, error: memberError } = await supabase
+          .from('vault_members')
+          .select('vault_id, encrypted_vault_key, nonce, permissions, vaults ( id, name, type )');
+        if (memberError) throw memberError;
+
+        if (memberData) {
+          for (const row of memberData as any[]) {
+            const vault = row.vaults;
+            if (!vault) continue;
+
+            const unwrappedKey = await unwrapVaultKey(
+              row.encrypted_vault_key,
+              row.nonce,
+              userMasterKey
+            );
+            newVaultKeys.set(vault.id, unwrappedKey);
+            decryptedVaultEntities.push({
+              id: vault.id,
+              name: vault.name,
+              type: vault.type,
+              permissions: row.permissions,
+            });
+          }
+        }
+
+        // 3. Fetch credentials for all available vaults
+        const vaultIds = Array.from(newVaultKeys.keys());
+        if (vaultIds.length > 0) {
+          const { data: credData, error: credError } = await supabase
+            .from('credentials')
+            .select('*')
+            .in('vault_id', vaultIds);
+          if (credError) throw credError;
+
+          if (credData) {
+            for (const cred of credData) {
+              const vKey = newVaultKeys.get(cred.vault_id);
+              if (!vKey) continue;
+              try {
+                const payload = await decryptCredential(
+                  {
+                    ciphertext: cred.encrypted_payload,
+                    nonce: cred.nonce,
+                    cryptoVersion: cred.crypto_version,
+                  },
+                  vKey
+                );
+                decryptedCredentials.push({
+                  id: cred.id,
+                  vaultId: cred.vault_id,
+                  payload,
+                  updatedAt: cred.updated_at,
+                });
+              } catch (e) {
+                console.error(`Failed to decrypt cred ${cred.id}`, e);
+              }
+            }
+          }
+        }
+      } else {
+        // Fallback local mode
+        const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+        const db: StoredEncryptedDB = raw ? JSON.parse(raw) : { userCrypto: null, vaults: [], vaultMembers: [], credentials: [] };
+
+        for (const vm of db.vaultMembers) {
+          const v = db.vaults.find((vault) => vault.id === vm.vaultId);
+          if (!v) continue;
+
+          const unwrappedVaultKey = await unwrapVaultKey(vm.encryptedVaultKey, vm.nonce, userMasterKey);
+          newVaultKeys.set(vm.vaultId, unwrappedVaultKey);
+          decryptedVaultEntities.push({
+            id: v.id,
+            name: v.name,
+            type: v.type,
+            permissions: vm.permissions,
+          });
+        }
+
+        for (const cred of db.credentials) {
+          const vKey = newVaultKeys.get(cred.vaultId);
+          if (!vKey) continue;
+          try {
+            const payload = await decryptCredential(
+              {
+                ciphertext: cred.encryptedPayload,
+                nonce: cred.nonce,
+                cryptoVersion: cred.cryptoVersion,
+              },
+              vKey
+            );
+            decryptedCredentials.push({
+              id: cred.id,
+              vaultId: cred.vaultId,
+              payload,
+              updatedAt: cred.updatedAt,
+            });
+          } catch (e) {
+            console.error(`Failed to decrypt credential ${cred.id}`, e);
+          }
+        }
+      }
+
+      vaultKeysRef.current = newVaultKeys;
+      setVaults(decryptedVaultEntities);
+      if (decryptedVaultEntities.length > 0 && !activeVaultId) {
+        setActiveVaultId(decryptedVaultEntities[0].id);
+      }
+      setCredentials(decryptedCredentials);
+      setIsUnlocked(true);
+      resetActivity();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Save (Add or Update) Credential
+  const saveCredential = async (payload: CredentialPayload, credentialId?: string) => {
+    if (!activeVaultId) throw new Error('No active vault selected');
+    const vaultKey = vaultKeysRef.current.get(activeVaultId);
+    if (!vaultKey) throw new Error('Vault key not available');
+
+    const encrypted = await encryptCredential(payload, vaultKey);
+    const updatedAt = new Date().toISOString();
+
+    if (isSupabaseConfigured && supabase && user) {
+      if (credentialId) {
+        const { error } = await supabase
+          .from('credentials')
+          .update({
+            encrypted_payload: encrypted.ciphertext,
+            nonce: encrypted.nonce,
+            crypto_version: encrypted.cryptoVersion,
+            updated_at: updatedAt,
+          })
+          .eq('id', credentialId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('credentials')
+          .insert({
+            vault_id: activeVaultId,
+            encrypted_payload: encrypted.ciphertext,
+            nonce: encrypted.nonce,
+            crypto_version: encrypted.cryptoVersion,
+            created_by: user.id,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        credentialId = data.id;
+      }
+    } else {
+      const id = credentialId || 'cred-' + Date.now();
+      credentialId = id;
+      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+      const db: StoredEncryptedDB = raw ? JSON.parse(raw) : { userCrypto: null, vaults: [], vaultMembers: [], credentials: [] };
+
+      const existingIndex = db.credentials.findIndex((c) => c.id === id);
+      const newEncryptedRecord = {
+        id,
+        vaultId: activeVaultId,
+        encryptedPayload: encrypted.ciphertext,
+        nonce: encrypted.nonce,
+        cryptoVersion: encrypted.cryptoVersion,
+        updatedAt,
+      };
+
+      if (existingIndex >= 0) {
+        db.credentials[existingIndex] = newEncryptedRecord;
+      } else {
+        db.credentials.push(newEncryptedRecord);
+      }
+      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(db));
+    }
+
+    // Update in-memory state
+    setCredentials((prev) => {
+      const idx = prev.findIndex((c) => c.id === credentialId);
+      const item: VaultItem = { id: credentialId!, vaultId: activeVaultId, payload, updatedAt };
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = item;
+        return copy;
+      }
+      return [item, ...prev];
+    });
+    resetActivity();
+  };
+
+  // Remove Credential
+  const removeCredential = async (credentialId: string) => {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('credentials').delete().eq('id', credentialId);
+      if (error) throw error;
+    } else {
+      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+      if (raw) {
+        const db: StoredEncryptedDB = JSON.parse(raw);
+        db.credentials = db.credentials.filter((c) => c.id !== credentialId);
+        localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(db));
+      }
+    }
+    setCredentials((prev) => prev.filter((c) => c.id !== credentialId));
+    resetActivity();
+  };
+
+  // Add Shared Vault
+  const addSharedVault = async (name: string) => {
+    if (!userMasterKeyRef.current) throw new Error('User not unlocked');
+    const newVaultKey = await createVaultKey();
+    const wrappedVaultKey = await wrapVaultKeyForUser(newVaultKey, userMasterKeyRef.current);
+
+    if (isSupabaseConfigured && supabase && user) {
+      const { data: vData, error: vError } = await supabase
+        .from('vaults')
+        .insert({
+          owner_user_id: user.id,
+          name,
+          type: 'SHARED',
+        })
+        .select()
+        .single();
+      if (vError) throw vError;
+
+      const { error: mError } = await supabase.from('vault_members').insert({
+        vault_id: vData.id,
+        user_id: user.id,
+        encrypted_vault_key: wrappedVaultKey.ciphertext,
+        nonce: wrappedVaultKey.nonce,
+        permissions: 'ADMIN',
+      });
+      if (mError) throw mError;
+
+      vaultKeysRef.current.set(vData.id, newVaultKey);
+      const newEntity: VaultEntity = { id: vData.id, name, type: 'SHARED', permissions: 'ADMIN' };
+      setVaults((prev) => [...prev, newEntity]);
+      setActiveVaultId(vData.id);
+    } else {
+      const newVaultId = 'vault-shared-' + Date.now();
+      vaultKeysRef.current.set(newVaultId, newVaultKey);
+
+      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+      const db: StoredEncryptedDB = raw ? JSON.parse(raw) : { userCrypto: null, vaults: [], vaultMembers: [], credentials: [] };
+
+      db.vaults.push({ id: newVaultId, name, type: 'SHARED' });
+      db.vaultMembers.push({
+        vaultId: newVaultId,
+        userId: 'current-user',
+        encryptedVaultKey: wrappedVaultKey.ciphertext,
+        nonce: wrappedVaultKey.nonce,
+        permissions: 'ADMIN',
+      });
+
+      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(db));
+      const newEntity: VaultEntity = { id: newVaultId, name, type: 'SHARED', permissions: 'ADMIN' };
+      setVaults((prev) => [...prev, newEntity]);
+      setActiveVaultId(newVaultId);
+    }
+    resetActivity();
+  };
+
+  // Change Master Password
+  const changeMasterPassword = async (oldPass: string, newPass: string) => {
+    const cryptoRecord = userCryptoDataRef.current;
+    if (!cryptoRecord) throw new Error('No crypto configuration found');
+
+    const { updatedSetup, userMasterKey } = await rotateMasterPassword(oldPass, newPass, cryptoRecord);
+    userMasterKeyRef.current = userMasterKey;
+    userCryptoDataRef.current = updatedSetup;
+
+    if (isSupabaseConfigured && supabase && user) {
+      const { error } = await supabase
+        .from('user_crypto')
+        .update({
+          encrypted_user_key: updatedSetup.encryptedUserKey,
+          user_key_nonce: updatedSetup.userKeyNonce,
+          kdf_salt: updatedSetup.kdfSalt,
+          kdf_parameters: updatedSetup.kdfParameters,
+          crypto_version: updatedSetup.cryptoVersion,
+        })
+        .eq('user_id', user.id);
+      if (error) throw error;
+    } else {
+      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+      if (raw) {
+        const db: StoredEncryptedDB = JSON.parse(raw);
+        db.userCrypto = updatedSetup;
+        localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(db));
+      }
+    }
+    resetActivity();
+  };
+
+  return (
+    <VaultContext.Provider
+      value={{
+        user,
+        isUnlocked,
+        isConfigured,
+        isSupabaseConnected: isSupabaseConfigured,
+        activeVaultId,
+        vaults,
+        credentials,
+        isLoading,
+        autoLockMinutes,
+        timeRemainingSeconds,
+        setActiveVaultId,
+        setAutoLockMinutes: setAutoLockMinutesState,
+        signUpWithSupabase,
+        signInWithSupabase,
+        signOut,
+        setupAccount,
+        unlock,
+        lock,
+        saveCredential,
+        removeCredential,
+        addSharedVault,
+        changeMasterPassword,
+      }}
+    >
+      {children}
+    </VaultContext.Provider>
+  );
+}
+
+export function useVault() {
+  const context = useContext(VaultContext);
+  if (!context) {
+    throw new Error('useVault must be used within a VaultProvider');
+  }
+  return context;
+}
