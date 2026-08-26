@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useVault, VaultItem } from '@/context/VaultContext';
 import { copyToClipboardSecure } from '@/lib/security/clipboard';
 import { CredentialPayload } from '@/lib/crypto';
-import { findPlatformByNameOrDomain, getPlatformLogoUrl } from '@/lib/constants/platforms';
+import { PlatformIcon } from './PlatformIcon';
 import {
   Search,
   Plus,
@@ -228,9 +228,6 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 const isUserCopied = copiedId === `${item.id}-user`;
                 const isPassCopied = copiedId === `${item.id}-pass`;
 
-                const matchedPlatform = findPlatformByNameOrDomain(item.payload.platform);
-                const logoUrl = getPlatformLogoUrl(matchedPlatform || null, item.payload.url);
-
                 return (
                   <div
                     key={item.id}
@@ -238,26 +235,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        {/* Real Platform Logo Badge */}
-                        <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center p-2 flex-shrink-0 shadow-sm transition group-hover:scale-105"
-                          style={{ backgroundColor: matchedPlatform?.bgColor || '#0f766e' }}
-                        >
-                          {logoUrl ? (
-                            <img
-                              src={logoUrl}
-                              alt={item.payload.platform}
-                              className="w-full h-full object-contain filter brightness-0 invert"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <span className="font-bold text-sm text-white uppercase">
-                              {item.payload.platform.substring(0, 2)}
-                            </span>
-                          )}
-                        </div>
+                        {/* Crisp Brand Logo */}
+                        <PlatformIcon
+                          platformName={item.payload.platform}
+                          url={item.payload.url}
+                          size="md"
+                          className="group-hover:scale-105"
+                        />
 
                         <div className="min-w-0">
                           <h4 className="text-base font-semibold text-white flex items-center gap-2 truncate">

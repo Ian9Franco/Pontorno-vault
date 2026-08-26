@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { CredentialPayload } from '@/lib/crypto';
 import { generateSecurePassword, estimatePasswordStrength } from '@/lib/security/generator';
-import { findPlatformByNameOrDomain, getPlatformLogoUrl, PlatformDefinition } from '@/lib/constants/platforms';
+import { PlatformDefinition } from '@/lib/constants/platforms';
 import { PlatformSelectModal } from './PlatformSelectModal';
+import { PlatformIcon } from './PlatformIcon';
 import { X, Eye, EyeOff, Sparkles, Globe, User, Lock, FileText, Check, LayoutGrid } from 'lucide-react';
 
 interface CredentialModalProps {
@@ -47,9 +48,6 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
   }, [initialData, isOpen]);
 
   if (!isOpen) return null;
-
-  const matchedPlatform = findPlatformByNameOrDomain(platform);
-  const logoUrl = getPlatformLogoUrl(matchedPlatform || null, url);
 
   const handleSelectPlatform = (selected: PlatformDefinition) => {
     setPlatform(selected.name);
@@ -105,25 +103,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
         <div className="w-full max-w-lg bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl p-6 animate-slide-up max-h-[92vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
-              {matchedPlatform ? (
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center p-2 shadow-sm flex-shrink-0"
-                  style={{ backgroundColor: matchedPlatform.bgColor }}
-                >
-                  <img
-                    src={logoUrl}
-                    alt={matchedPlatform.name}
-                    className="w-full h-full object-contain filter brightness-0 invert"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                </div>
-              ) : (
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center font-bold text-sm">
-                  {platform ? platform.substring(0, 2).toUpperCase() : <Globe className="w-5 h-5" />}
-                </div>
-              )}
+              <PlatformIcon platformName={platform} url={url} size="md" />
               <div>
                 <h3 className="text-lg font-bold text-white">
                   {initialData ? 'Editar Credencial' : 'Nueva Credencial'}
