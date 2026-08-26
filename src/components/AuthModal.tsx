@@ -2,11 +2,11 @@
 
 import React, { useState } from 'react';
 import { useVault } from '@/context/VaultContext';
-import { Shield, Mail, Lock, User, ArrowRight, Eye, EyeOff, Sparkles, KeyRound } from 'lucide-react';
+import { Shield, Mail, Lock, User, ArrowRight, Eye, EyeOff, KeyRound, AlertCircle } from 'lucide-react';
 import { estimatePasswordStrength } from '@/lib/security/generator';
 
 export const AuthModal: React.FC = () => {
-  const { unifiedAuth, isSupabaseConnected } = useVault();
+  const { unifiedAuth } = useVault();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -46,7 +46,8 @@ export const AuthModal: React.FC = () => {
         isSignUp,
       });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error en la autenticación');
+      const msg = err instanceof Error ? err.message : 'Error en la autenticación';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -71,8 +72,12 @@ export const AuthModal: React.FC = () => {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-950/50 border border-rose-800/40 text-rose-300 text-xs">
-            {error}
+          <div className="mb-4 p-3.5 rounded-xl bg-rose-950/60 border border-rose-800/50 text-rose-200 text-xs flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold text-rose-300">Aviso de Autenticación:</p>
+              <p className="leading-relaxed">{error}</p>
+            </div>
           </div>
         )}
 
@@ -193,7 +198,7 @@ export const AuthModal: React.FC = () => {
               setIsSignUp(!isSignUp);
               setError(null);
             }}
-            className="text-xs text-gray-400 hover:text-emerald-400 transition"
+            className="text-xs text-gray-400 hover:text-emerald-400 transition font-medium"
           >
             {isSignUp ? '¿Ya tienes una cuenta? Inicia sesión aquí' : '¿Nuevo miembro familiar? Regístrate aquí'}
           </button>

@@ -43,7 +43,8 @@ ALTER TABLE public.vault_members ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "vaults_select_members"
     ON public.vaults FOR SELECT
     USING (
-        EXISTS (
+        type = 'SHARED'
+        OR EXISTS (
             SELECT 1 FROM public.vault_members
             WHERE vault_members.vault_id = vaults.id
               AND vault_members.user_id = auth.uid()
@@ -77,3 +78,7 @@ CREATE POLICY "vault_members_insert_admin"
               AND vm.permissions = 'ADMIN'
         )
     );
+
+CREATE POLICY "vault_members_update_admin"
+    ON public.vault_members FOR UPDATE
+    USING (auth.uid() = user_id);
