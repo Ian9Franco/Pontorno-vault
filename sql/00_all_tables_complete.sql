@@ -293,11 +293,33 @@ CREATE OR REPLACE TRIGGER trigger_credentials_updated_at
     FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 -- -----------------------------------------------------------------------------
--- 7. ÍNDICES DE RENDIMIENTO
+-- 8. TABLA: verification_codes (Inbox de Códigos OTP familiares y Magic Links)
 -- -----------------------------------------------------------------------------
-CREATE INDEX IF NOT EXISTS idx_family_members_user_id ON public.family_members(user_id);
-CREATE INDEX IF NOT EXISTS idx_family_members_family_id ON public.family_members(family_id);
-CREATE INDEX IF NOT EXISTS idx_vault_members_user_id ON public.vault_members(user_id);
-CREATE INDEX IF NOT EXISTS idx_vault_members_vault_id ON public.vault_members(vault_id);
-CREATE INDEX IF NOT EXISTS idx_credentials_vault_id ON public.credentials(vault_id);
-CREATE INDEX IF NOT EXISTS idx_credentials_created_by ON public.credentials(created_by);
+CREATE TABLE IF NOT EXISTS public.verification_codes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    service_name TEXT NOT NULL,
+    sender_email TEXT,
+    subject TEXT,
+    code TEXT NOT NULL,
+    snippet TEXT,
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT (timezone('utc'::text, now()) + interval '15 minutes'),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.verification_codes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "verification_codes_select_authenticated"
+    ON public.verification_codes FOR SELECT
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "verification_codes_insert_all"
+    ON public.verification_codes FOR INSERT
+    WITH CHECK (true);
+
+CREATE POLICY "verification_codes_delete_authenticated"
+    ON public.verification_codes FOR DELETE
+    TO authenticated
+    USING (true);
+
+CREATE INDEX IF NOT EXISTS idx_verification_codes_created_at ON public.verification_codes(created_at DESC);
