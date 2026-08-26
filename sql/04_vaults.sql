@@ -1,10 +1,10 @@
 -- =============================================================================
--- TABLAS: vaults y vault_members (Bóvedas personales y compartidas con VaultKey envuelta)
+-- TABLAS: vaults y vault_members (Bóvedas personales y compartidas con Zero-Knowledge)
 -- =============================================================================
 
 DO $$ BEGIN
     CREATE TYPE public.vault_type AS ENUM ('PERSONAL', 'SHARED');
-EXCEPTION
+EXCEPTIOn
     WHEN duplicate_object THEN null;
 END $$;
 
@@ -40,10 +40,21 @@ CREATE TABLE IF NOT EXISTS public.vault_members (
 
 ALTER TABLE public.vault_members ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "vaults_select_members"
+-- -----------------------------------------------------------------------------
+-- POLÍTICAS RLS NO RECURSIVAS PARA VAULTS
+-- -----------------------------------------------------------------------------
+DROP POLICY IF EXISTS "vaults_select_members" ON public.vaults;
+DROP POLICY IF EXISTS "vaults_select" ON public.vaults;
+DROP POLICY IF EXISTS "vaults_insert_owner" ON public.vaults;
+DROP POLICY IF EXISTS "vaults_insert" ON public.vaults;
+DROP POLICY IF EXISTS "vaults_update" ON public.vaults;
+DROP POLICY IF EXISTS "vaults_delete" ON public.vaults;
+
+CREATE POLICY "vaults_select"
     ON public.vaults FOR SELECT
     USING (
         type = 'SHARED'
+        OR owner_user_id = auth.uid()
         OR EXISTS (
             SELECT 1 FROM public.vault_members
             WHERE vault_members.vault_id = vaults.id
@@ -51,34 +62,41 @@ CREATE POLICY "vaults_select_members"
         )
     );
 
-CREATE POLICY "vaults_insert_owner"
+CREATE POLICY "vaults_insert"
     ON public.vaults FOR INSERT
     WITH CHECK (auth.uid() = owner_user_id);
 
-CREATE POLICY "vault_members_select_own_or_admin"
+CREATE POLICY "vaults_update"
+    ON public.vaults FOR UPDATE
+    USING (auth.uid() = owner_user_id);
+
+CREATE POLICY "vaults_delete"
+    ON public.vaults FOR DELETE
+    USING (auth.uid() = owner_user_id);
+
+-- -----------------------------------------------------------------------------
+-- POLÍTICAS RLS NO RECURSIVAS PARA VAULT_MEMBERS (Sin subconsultas autorreferenciales)
+-- -----------------------------------------------------------------------------
+DROP POLICY IF EXISTS "vault_members_select_own_or_admin" ON public.vault_members;
+DROP POLICY IF EXISTS "vault_members_select" ON public.vault_members;
+DROP POLICY IF EXISTS "vault_members_insert_admin" ON public.vault_members;
+DROP POLICY IF EXISTS "vault_members_insert" ON public.vault_members;
+DROP POLICY IF EXISTS "vault_members_update_admin" ON public.vault_members;
+DROP POLICY IF EXISTS "vault_members_update" ON public.vault_members;
+DROP POLICY IF EXISTS "vault_members_delete" ON public.vault_members;
+
+CREATE POLICY "vault_members_select"
     ON public.vault_members FOR SELECT
-    USING (
-        vault_members.user_id = auth.uid()
-        OR EXISTS (
-            SELECT 1 FROM public.vault_members AS vm
-            WHERE vm.vault_id = vault_members.vault_id
-              AND vm.user_id = auth.uid()
-              AND vm.permissions = 'ADMIN'
-        )
-    );
+    USING (auth.uid() = user_id);
 
-CREATE POLICY "vault_members_insert_admin"
+CREATE POLICY "vault_members_insert"
     ON public.vault_members FOR INSERT
-    WITH CHECK (
-        auth.uid() = user_id
-        OR EXISTS (
-            SELECT 1 FROM public.vault_members AS vm
-            WHERE vm.vault_id = vault_members.vault_id
-              AND vm.user_id = auth.uid()
-              AND vm.permissions = 'ADMIN'
-        )
-    );
+    WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "vault_members_update_admin"
+CREATE POLICY "vault_members_update"
     ON public.vault_members FOR UPDATE
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "vault_members_delete"
+    ON public.vault_members FOR DELETE
     USING (auth.uid() = user_id);
