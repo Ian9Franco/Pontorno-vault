@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "../components/vault/dashboard.css";
+@import "../components/vault/motion.css";
 
 @layer base {
   :root {

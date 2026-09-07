@@ -26,7 +26,7 @@ describe('permission-aware vault UI', () => {
     expect(html.includes('title="Editar"')).toBe(permissions !== 'READ');
     expect(html.includes('title="Eliminar"')).toBe(permissions !== 'READ');
     expect(html).not.toContain('title="Editar Bóveda"');
-    expect(html).not.toContain('Editar o eliminar esta bóveda');
+    expect(html).not.toContain('Editar bóveda actual');
     expect(html).toContain('Copiar contraseña');
     expect(html).toContain('invitaciones aún no están disponibles');
     expect(html).toContain('inbox de códigos está temporalmente deshabilitado');
@@ -35,7 +35,7 @@ describe('permission-aware vault UI', () => {
   it('shows management only to the owner and protects the edit modal too', () => {
     const vault: VaultEntity = { id: 'vault', name: 'Shared', type: 'SHARED', permissions: 'ADMIN', isOwner: true };
     state.vaults = [vault];
-    expect(renderToStaticMarkup(<VaultView onAddCredential={() => {}} onEditCredential={() => {}} />)).toContain('Editar o eliminar esta bóveda');
+    expect(renderToStaticMarkup(<VaultView onAddCredential={() => {}} onEditCredential={() => {}} />)).toContain('Editar bóveda actual');
     expect(renderToStaticMarkup(<EditVaultModal isOpen onClose={() => {}} vault={{ ...vault, isOwner: false }} />)).toBe('');
   });
   it('explains sharing at creation and preserves access errors in the unlock dialog', () => {

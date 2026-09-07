@@ -172,4 +172,12 @@ npm test
 
 ## 📄 Licencia
 
+La organización del dashboard, sus componentes, estados sensibles y criterios de
+adaptación están documentados en [Arquitectura de la interfaz](docs/UI_ARCHITECTURE.md).
+
 Desarrollado bajo licencia [ISC](./package.json).
+
+
+
+Correo: ui-review@example.invalid
+Contraseña: Local-demo-only-2026!

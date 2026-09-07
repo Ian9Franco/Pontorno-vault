@@ -1,0 +1,115 @@
+/* The narrow masked gradient travels around the existing panel perimeter.
+   Pointer events pass through; no glow obscures text or changes hit targets. */
+@property --edge-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@keyframes edge-orbit { to { --edge-angle: 360deg; } }
+.vault-switch, .credential-card { position: relative; }
+.vault-switch::before, .credential-card::before, .technical-dialog::before {
+  content: ''; position: absolute; inset: -1px; padding: 1px; pointer-events: none;
+  background: conic-gradient(from var(--edge-angle), transparent 0deg 290deg, #9aead600 300deg, #b9fff0aa 335deg, transparent 360deg);
+  mask: linear-gradient(#fff 0 0) content-box exclude, linear-gradient(#fff 0 0);
+  animation: edge-orbit 9s linear infinite; opacity: .6;
+}
+.credential-card::before { opacity: 0; animation-play-state: paused; }
+.credential-card:hover::before, .credential-card:focus-within::before { opacity: .65; animation-play-state: running; }
+.vault-switch:not([aria-pressed=true])::before { opacity: 0; animation-play-state: paused; }
+.technical-dialog { --line: #30434a; --accent: #9aead6; position: fixed; margin: auto; width: min(540px, calc(100% - 24px)); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 0; border: 1px solid var(--line); color: #e6f0f3; background: linear-gradient(140deg,#172528,#0d151c 70%); box-shadow: 0 28px 100px #0009; }
+.technical-dialog::backdrop { background: #050b11cc; backdrop-filter: blur(8px); }
+.technical-dialog[open] { animation: panel-enter .22s ease-out; }
+.technical-dialog-inner { padding: 24px; }
+.technical-dialog-header { display: flex; align-items: center; gap: 12px; }
+.technical-dialog-header > div:nth-child(2) { flex: 1; min-width: 0; }
+.technical-dialog-header h2 { font-size: 21px; font-weight: 600; letter-spacing: -.025em; }
+.technical-kicker { color: #9aead6; font: 9px/1.8 monospace; letter-spacing: .16em; }
+.dialog-symbol { display: grid; place-items: center; width: 44px; height: 48px; border: 1px solid #365651; color: #9aead6; background: #9aead608; }
+.technical-description { color: #9fb5bf; font-size: 14px; margin: 18px 0 24px; padding-bottom: 18px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.technical-fields { display: grid; gap: 22px; }
+.technical-fields label:not(.privacy-option), .technical-fields legend { display: block; font-size: 12px; margin-bottom: 10px; color: #c4d7dc; }
+.technical-input { width: 100%; min-height: 48px; padding: 12px; border: 1px solid #38505a; background: #090f16; font-size: 16px; }
+.privacy-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.privacy-option { position: relative; display: flex; align-items: flex-start; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid #31434c; background: #0c151c; cursor: pointer; }
+.privacy-option[data-selected=true] { border-color: #9aead6; background: #9aead60c; }
+.privacy-option > input { position: absolute; right: 12px; top: 14px; accent-color: #9aead6; width: 16px; height: 16px; }
+.privacy-option > svg { color: #9aead6; }
+.privacy-option strong { font-size: 14px; font-weight: 500; }
+.privacy-option span { font-size: 12px; line-height: 1.6; color: #a7b9c3; }
+.privacy-option:focus-within { outline: 2px solid #9aead6; outline-offset: 3px; }
+.technical-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 18px; border-top: 1px solid #30434a; }
+.technical-primary, .technical-secondary, .technical-danger { display: inline-flex; gap: 8px; align-items: center; justify-content: center; min-height: 48px; padding: 12px 18px; font-size: 13px; font-weight: 600; border: 1px solid transparent; }
+.technical-primary { background: #9aead6; color: #08231f; }
+.technical-secondary { border-color: #3a5058; color: #c2d3dc; background: #0d171f; }
+.technical-danger { color: #170c0e; background: #f67d79; }
+.technical-dialog button:disabled { opacity: .4; cursor: not-allowed; }
+.technical-error { color: #ffbcb4; border: 1px solid #8a494c; background: #412025; padding: 12px; font-size: 13px; margin-bottom: 18px; }
+.technical-hint { color: #afc1c6; font-size: 12px; line-height: 1.7; margin-top: 16px; }
+.manage-create { width: 100%; }
+.managed-vaults { display: grid; gap: 10px; margin-top: 20px; }
+.managed-vaults li { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #30434a; }
+.managed-vaults li > svg { flex-shrink: 0; color: #9aead6; }
+.managed-vaults li > div { flex: 1; min-width: 0; }
+.managed-vaults strong { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.managed-vaults p { color: #a4b7be; font-size: 11px; margin-top: 4px; }
+.vault-delete-panel { border: 1px solid #8a494c; padding: 20px; background: #f67d7909; }
+.vault-delete-panel > svg { color: #f67d79; margin-bottom: 14px; }
+.vault-delete-panel h3 { font-size: 18px; overflow-wrap: anywhere; }
+.vault-delete-panel p { font-size: 13px; line-height: 1.7; margin-top: 12px; color: #e0bab7; }
+/* Preload borrows the mint access strip and diagonal hatch from the reference,
+   without importing its emergency copy or inventing a completed percentage. */
+.vault-loading { min-height: 100dvh; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 30%,#1b3232,#090e15 65%); color: #e7f1f1; }
+.vault-loading-overlay { position: fixed; inset: 0; z-index: 60; overflow-y: auto; }
+.preload-console { text-align: center; width: min(100%,380px); }
+.preload-symbol { position: relative; display: grid; place-items: center; width: 92px; height: 100px; margin: 24px auto; color: #9aead6; background: #9aead608; border: 1px solid #456961; clip-path: polygon(20% 0,80% 0,100% 50%,80% 100%,20% 100%,0 50%); }
+.preload-symbol > svg:last-child { position: absolute; }
+.preload-console h2 { font-size: clamp(20px,4vw,28px); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
+.preload-console > p:not(.technical-kicker) { font-size: 13px; color: #a0bcbf; margin: 14px 0 20px; }
+.preload-track { height: 16px; border: 1px solid #9aead6; background: repeating-linear-gradient(115deg,#9aead6 0 9px,#182b2a 9px 18px); background-size: 40px 100%; animation: access-stripes 1.5s linear infinite; }
+.preload-caption { display: block; margin-top: 8px; color: #9aead6; font: 9px/1.8 monospace; letter-spacing: .2em; }
+.vault-skeleton { width: min(100%,720px); margin-top: 32px; opacity: .45; }
+.skeleton-vaults, .skeleton-services { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.skeleton-services { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.skeleton-panel { padding: 14px; border: 1px solid #30454a; background: #112025; }
+.skeleton-panel i, .skeleton-search { display: block; height: 8px; width: 65%; margin: 8px 0; background: linear-gradient(90deg,#263c40,#4d6f70,#263c40); background-size: 200% 100%; animation: skeleton-sweep 2.5s ease-in-out infinite; }
+.skeleton-panel i:nth-child(2) { width: 90%; height: 6px; }
+.skeleton-search { width: 100%; height: 24px; margin-block: 14px; }
+@keyframes access-stripes { to { background-position: 40px 0; } }
+@keyframes skeleton-sweep { to { background-position: -200% 0; } }
+@keyframes panel-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+/* Six-sided safe: transforms preserve geometry; the shadow is a separate ground plane. */
+.vault-object-scene { --size: 68px; --half: 34px; position: relative; flex-shrink: 0; width: 124px; height: 124px; perspective: 600px; }
+.vault-object-solid { position: absolute; width: var(--size); height: var(--size); left: calc(50% - var(--half)); top: calc(50% - var(--half)); transform-style: preserve-3d; transform: rotateX(-18deg) rotateY(-32deg); }
+.vault-object-face { position: absolute; inset: 0; border: 1px solid #719f99; background: #17292d; backface-visibility: hidden; }
+.face-front { transform: translateZ(var(--half)); background: linear-gradient(140deg,#304d50,#102125); padding: 7px; }
+.face-back { transform: rotateY(180deg) translateZ(var(--half)); }
+.face-left { transform: rotateY(-90deg) translateZ(var(--half)); background: #132124; }
+.face-right { transform: rotateY(90deg) translateZ(var(--half)); background: linear-gradient(110deg,#0d1e22,#233c3d); display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 13px; }
+.face-right > i { height: 2px; background: #080f13; box-shadow: 0 1px #6da39655; }
+.face-top { transform: rotateX(90deg) translateZ(var(--half)); background: linear-gradient(45deg,#355653,#67958b); }
+.face-bottom { transform: rotateX(-90deg) translateZ(var(--half)); background: #0b1318; }
+.vault-object-door { position: relative; display: grid; place-items: center; height: 100%; border: 1px solid #92d4c49c; box-shadow: inset 0 0 0 3px #0a171b; color: #b5ffe7; }
+.vault-object-door > i { position: absolute; width: 5px; height: 9px; left: -3px; top: 5px; background: #86aba1; border: 1px solid #1e3738; }
+.vault-object-door > i:nth-of-type(2) { top: auto; bottom: 5px; }
+.vault-object-door > span { position: absolute; width: 14px; height: 2px; bottom: 5px; background: #9aead6; box-shadow: 0 0 7px #9aead6aa; }
+.vault-object-shadow { position: absolute; bottom: 7px; left: 22px; width: 80px; height: 14px; background: #0008; filter: blur(7px); border-radius: 50%; }
+.preload-console .vault-object-scene { margin: 12px auto 20px; width: 160px; height: 150px; --size: 84px; --half: 42px; }
+.preload-console .vault-object-shadow { left: 40px; }
+.vault-object-animated .vault-object-solid { animation: vault-hover 6s ease-in-out infinite; }
+@keyframes vault-hover { 0%,100% { transform: translateY(0) rotateX(-18deg) rotateY(-32deg); } 50% { transform: translateY(-8px) rotateX(-12deg) rotateY(-12deg); } }
+@media (max-width: 639px) {
+  .technical-dialog { margin: auto auto 12px; max-height: calc(100dvh - 24px); }
+  .technical-dialog-inner { padding: 20px 16px max(20px,env(safe-area-inset-bottom)); }
+  .technical-dialog-header { gap: 8px; }
+  .technical-dialog-header h2 { font-size: 18px; }
+  .dialog-symbol { display: none; }
+  .vault-access-row { flex-wrap: wrap; }
+  .vault-access-row > div { margin-left: auto; }
+  .vault-loading { padding: 24px 16px; }
+  .skeleton-services { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .skeleton-services > :nth-child(n+5) { display: none; }
+  .dashboard-heading .vault-object-scene { width: 76px; height: 90px; --size: 44px; --half: 22px; }
+  .dashboard-heading .vault-object-shadow { left: 8px; width: 60px; }
+  .dashboard-heading .vault-object-door svg { width: 16px; }
+  .dashboard-heading .vault-object-door > span { width: 8px; bottom: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vault-switch::before, .credential-card::before, .technical-dialog::before,
+  .preload-track, .skeleton-panel i, .skeleton-search, .technical-dialog[open], .vault-object-animated .vault-object-solid { animation: none; }
+}
