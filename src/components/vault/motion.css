@@ -76,6 +76,12 @@
 /* Six-sided safe: transforms preserve geometry; the shadow is a separate ground plane. */
 .vault-object-scene { --size: 68px; --half: 34px; position: relative; flex-shrink: 0; width: 124px; height: 124px; perspective: 600px; }
 .vault-object-solid { position: absolute; width: var(--size); height: var(--size); left: calc(50% - var(--half)); top: calc(50% - var(--half)); transform-style: preserve-3d; transform: rotateX(-18deg) rotateY(-32deg); }
+.vault-object-draggable { cursor: grab; touch-action: none; user-select: none; }
+.vault-object-draggable:active { cursor: grabbing; }
+.auth-submit svg, .card-icon-button svg, .dashboard-manage svg { transition: transform .2s ease; }
+.auth-submit:hover svg { transform: translateX(3px); }
+.card-icon-button:hover svg { transform: scale(1.08) rotate(-3deg); }
+.dashboard-manage:hover svg { transform: translateY(-1px); }
 .vault-object-face { position: absolute; inset: 0; border: 1px solid #719f99; background: #17292d; backface-visibility: hidden; }
 .face-front { transform: translateZ(var(--half)); background: linear-gradient(140deg,#304d50,#102125); padding: 7px; }
 .face-back { transform: rotateY(180deg) translateZ(var(--half)); }
@@ -110,6 +116,7 @@
   .dashboard-heading .vault-object-door > span { width: 8px; bottom: 2px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .vault-switch::before, .credential-card::before, .technical-dialog::before,
+  .vault-switch::before, .credential-card::before, .technical-dialog::before, .auth-panel::before,
   .preload-track, .skeleton-panel i, .skeleton-search, .technical-dialog[open], .vault-object-animated .vault-object-solid { animation: none; }
+  .auth-submit svg, .card-icon-button svg, .dashboard-manage svg { transition: none; transform: none; }
 }

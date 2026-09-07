@@ -68,9 +68,57 @@
 .sharing-notice { margin-top: 20px; padding: 0 16px; border-left: 2px solid var(--line); font-size: 13px; color: #94a8b9; }
 .sharing-notice summary { min-height: 44px; padding-block: 12px; cursor: pointer; }
 .sharing-notice p { margin-bottom: 12px; }
+/* Access screen follows the technical dashboard language while keeping the
+   authentication flow compact and mobile-first. */
+.auth-access { --line: #30434a; --accent: #9aead6; width: 100%; max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+.auth-panel { position: relative; overflow: hidden; padding: 24px; border: 1px solid var(--line); background: radial-gradient(ellipse at 100% 0,#9aead610,transparent 52%),linear-gradient(140deg,#172528,#0d151c 70%); box-shadow: 0 28px 100px #0006; }
+.auth-panel::before { content: ''; position: absolute; inset: -1px; padding: 1px; pointer-events: none; background: conic-gradient(from var(--edge-angle),transparent 0 300deg,#b9fff0aa 335deg,transparent 360deg); mask: linear-gradient(#fff 0 0) content-box exclude,linear-gradient(#fff 0 0); animation: edge-orbit 11s linear infinite; opacity: .6; }
+.auth-panel-header { position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; }
+.auth-panel-header-compact { grid-template-columns: 1fr auto; }
+.auth-brand-mark { display: grid; place-items: center; width: 56px; height: 60px; border: 1px solid #456961; color: #9aead6; background: #9aead608; clip-path: polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px); }
+.auth-brand-mark svg { width: 25px; }
+.auth-heading { min-width: 0; }
+.auth-heading h2 { margin-top: 5px; color: #eaf4f3; font-size: clamp(24px,4vw,34px); font-weight: 600; letter-spacing: -.04em; }
+.auth-heading > p:last-child { max-width: 440px; margin-top: 8px; color: #9fb5bf; font-size: 14px; line-height: 1.6; }
+.auth-panel-header .vault-object-scene { width: 110px; height: 118px; --size: 58px; --half: 29px; }
+.auth-panel-header .vault-object-shadow { left: 16px; width: 76px; }
+.auth-panel-header .vault-object-door svg { width: 20px; }
+.auth-status-row { position: relative; display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 22px 0 20px; padding: 12px 0; border-block: 1px solid var(--line); color: #a9c0c6; font: 10px/1.5 monospace; letter-spacing: .08em; text-transform: uppercase; }
+.auth-status-row span { display: inline-flex; align-items: center; gap: 7px; }
+.auth-status-row svg { width: 14px; color: #9aead6; }
+.auth-notice { position: relative; display: flex; gap: 12px; margin-bottom: 20px; padding: 14px; border: 1px solid #30434a; background: #0b161c; color: #a7b9c3; font-size: 13px; line-height: 1.6; }
+.auth-notice > svg { flex-shrink: 0; width: 19px; margin-top: 2px; color: #9aead6; }
+.auth-notice p { margin-bottom: 3px; color: #d3e4e4; font-weight: 600; }
+.auth-notice span { display: block; }
+.auth-form { position: relative; display: grid; gap: 20px; }
+.auth-form label { display: block; margin-bottom: 9px; color: #c4d7dc; font-size: 12px; }
+.auth-input-with-action { padding-right: 54px; }
+.auth-visibility-button { position: absolute; right: 1px; top: 1px; display: grid; place-items: center; width: 48px; height: 46px; color: #9eb2ba; }
+.auth-visibility-button:hover { color: #9aead6; background: #9aead608; }
+.auth-submit { width: 100%; margin-top: 2px; }
+.auth-submit:disabled { opacity: .45; cursor: wait; }
+.auth-mode-toggle { position: relative; display: block; width: 100%; min-height: 44px; margin-top: 14px; color: #9aead6; font-size: 13px; }
+.auth-mode-toggle:hover { background: #9aead608; }
+.auth-user-badge { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; padding: 11px 12px; border: 1px solid #30434a; background: #091119; }
+.auth-user-avatar { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border: 1px solid #416158; color: #9aead6; background: #9aead608; font-size: 11px; font-weight: 700; }
+.auth-signout { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 8px; flex-shrink: 0; color: #9fb0b8; font-size: 11px; }
+.auth-signout:hover { color: #ffaaa4; background: #f67d7908; }
+.navbar-brand-icon { width: 34px; height: 34px; flex-shrink: 0; object-fit: contain; transform: scale(2.15); filter: drop-shadow(0 0 9px #7f8cff33); }
 /* Tablet/mobile keep two dense columns; narrow phones use short, readable rows. */
 @media (max-width: 1023px) { .credential-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 639px) {
+  .auth-access { padding: 12px 10px 32px; }
+  .auth-panel { padding: 18px 14px 16px; }
+  .auth-panel-header { grid-template-columns: auto 1fr; gap: 12px; }
+  .auth-panel-header-compact { grid-template-columns: 1fr auto; }
+  .auth-panel-header .vault-object-scene { position: absolute; top: -16px; right: -18px; width: 82px; height: 92px; --size: 42px; --half: 21px; opacity: .7; }
+  .auth-panel-header .vault-object-shadow { left: 5px; width: 58px; }
+  .auth-panel-header .vault-object-door svg { width: 15px; }
+  .auth-heading { padding-right: 50px; }
+  .auth-heading h2 { font-size: 25px; }
+  .auth-heading > p:last-child { font-size: 13px; }
+  .auth-status-row { margin-top: 18px; gap: 8px 14px; font-size: 9px; }
+  .auth-notice { font-size: 12px; }
   .vault-dashboard { padding: 20px 12px 32px; }
   .dashboard-emblem { width: 48px; height: 56px; }
   .dashboard-emblem svg { width: 24px; }

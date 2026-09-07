@@ -37,7 +37,7 @@ export function VaultView({ onAddCredential, onEditCredential }: VaultViewProps)
         <h2>Tus contraseñas</h2>
         <p className="dashboard-description">Encuentra, copia y sigue con tu día.</p>
       </div>
-      <VaultObject />
+      <VaultObject interactive />
     </div>
     <SecurityStatus local={!isSupabaseConnected} autoLockMinutes={autoLockMinutes ?? 5} />
     <VaultSelector vaults={vaults} credentials={credentials} activeId={active?.id}

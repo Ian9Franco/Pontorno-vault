@@ -6,6 +6,7 @@ import type { VaultItem } from '@/context/VaultContext';
 import { copyToClipboardSecure } from '@/lib/security/clipboard';
 import { vaultErrorMessage } from '@/lib/security/vault-access';
 import { PlatformIcon } from '../PlatformIcon';
+import { motion, useReducedMotion } from 'motion/react';
 
 interface Props {
   item: VaultItem;
@@ -16,6 +17,7 @@ interface Props {
 
 /** Secret visibility and copy feedback belong to the card, and disappear on unmount. */
 export function CredentialCard({ item, canWrite, onEdit, onRemove }: Props) {
+  const reduceMotion = useReducedMotion();
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState<'user' | 'password' | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -44,7 +46,9 @@ export function CredentialCard({ item, canWrite, onEdit, onRemove }: Props) {
     finally { setBusy(false); }
   }
 
-  return <article className="credential-card" aria-label={item.payload.platform}>
+  return <motion.article className="credential-card" aria-label={item.payload.platform}
+    whileHover={reduceMotion ? undefined : { y: -2, boxShadow: '0 12px 30px rgba(0, 0, 0, .24)' }}
+    transition={{ type: 'spring', stiffness: 360, damping: 28 }}>
     <div className="credential-card-heading">
       <PlatformIcon platformName={item.payload.platform} url={item.payload.url} size="sm" />
       <h3 title={item.payload.platform}>{item.payload.platform}</h3>
@@ -92,5 +96,5 @@ export function CredentialCard({ item, canWrite, onEdit, onRemove }: Props) {
       </div>
     </details>
     {error && <p role="alert" className="mt-2 text-sm text-rose-200">{error}</p>}
-  </article>;
+  </motion.article>;
 }

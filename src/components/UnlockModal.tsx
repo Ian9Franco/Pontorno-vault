@@ -3,9 +3,12 @@
 import { vaultErrorMessage } from '@/lib/security/vault-access';
 import React, { useState } from 'react';
 import { useVault } from '@/context/VaultContext';
-import { Lock, Unlock, Eye, EyeOff, LogOut } from 'lucide-react';
+import { Unlock, Eye, EyeOff, LogOut, CheckCircle2, LockKeyhole } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
+import { VaultObject } from './vault/VaultObject';
 
 export const UnlockModal: React.FC = () => {
+  const reduceMotion = useReducedMotion();
   const { unlock, isLoading, accessError, user, userProfile, signOut } = useVault();
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -26,23 +29,27 @@ export const UnlockModal: React.FC = () => {
   const email = user?.email || userProfile?.email || '';
 
   return (
-    <div className="mx-auto w-full max-w-md px-5 py-8 sm:py-14">
-      <div className="text-center">
-        {/* Lock Icon */}
-        <div className="mx-auto w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-lg shadow-indigo-950/60 mb-4">
-          <Lock className="w-6 h-6" />
+    <section className="auth-access" aria-labelledby="unlock-title">
+      <div className="auth-panel">
+        <div className="auth-panel-header auth-panel-header-compact">
+          <div className="auth-heading">
+            <p className="technical-kicker">PONTORNO VAULT · SESIÓN BLOQUEADA</p>
+            <h2 id="unlock-title">Desbloquear bóveda</h2>
+            <p>Ingresa tu contraseña maestra para acceder a tus contraseñas familiares y privadas.</p>
+          </div>
+          <VaultObject interactive />
         </div>
 
-        <h2 className="text-xl font-bold text-slate-100 mb-1">Desbloquear Bóveda</h2>
-        <p className="text-xs text-slate-400 mb-4">
-          Ingresa tu contraseña maestra para acceder a tus contraseñas familiares y privadas.
-        </p>
+        <div className="auth-status-row" aria-label="Estado de seguridad">
+          <span><CheckCircle2 aria-hidden="true" /> Datos cifrados</span>
+          <span><LockKeyhole aria-hidden="true" /> Acceso bloqueado</span>
+        </div>
 
         {/* User Badge */}
         {email && (
-          <div className="mb-5 p-2.5 bg-slate-950/80 border border-slate-800/80 rounded-2xl flex items-center justify-between text-left shadow-sm">
+          <div className="auth-user-badge">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-7 h-7 rounded-xl bg-indigo-950 border border-indigo-800/60 text-indigo-400 font-bold text-xs flex items-center justify-center flex-shrink-0">
+              <div className="auth-user-avatar">
                 {displayName.substring(0, 2).toUpperCase()}
               </div>
               <div className="min-w-0">
@@ -53,7 +60,7 @@ export const UnlockModal: React.FC = () => {
             <button
               type="button"
               onClick={signOut}
-              className="text-[11px] text-slate-400 hover:text-rose-400 flex items-center gap-1 transition p-1 flex-shrink-0 font-medium"
+              className="auth-signout"
               title="Cerrar sesión para entrar con otra cuenta"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -63,14 +70,14 @@ export const UnlockModal: React.FC = () => {
         )}
 
         {(error || accessError) && (
-          <div role="alert" className="mb-4 p-3 rounded-xl bg-rose-950/50 border border-rose-800/40 text-rose-300 text-xs text-left">
+          <div role="alert" className="technical-error">
             {error || accessError}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-left">
+        <form onSubmit={handleSubmit} className="auth-form">
           <div>
-            <label htmlFor="unlock-password" className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+            <label htmlFor="unlock-password">
               Contraseña Maestra
             </label>
             <div className="relative">
@@ -79,24 +86,27 @@ export const UnlockModal: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Ingresa tu contraseña maestra..."
-                className="vault-input pr-14"
+                className="technical-input auth-input-with-action"
                 required
                 autoFocus
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center text-slate-400 hover:text-slate-200"
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} className="auth-visibility-button"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>
 
-          <button
+          <motion.button
             type="submit"
             disabled={isLoading || !password}
-            className="vault-primary w-full"
+            className="technical-primary auth-submit"
+            whileHover={reduceMotion ? undefined : { y: -2, boxShadow: '0 9px 24px rgba(0, 0, 0, .32)' }}
+            whileTap={reduceMotion ? undefined : { y: 0, scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 28 }}
           >
             {isLoading ? (
               <>
@@ -109,19 +119,19 @@ export const UnlockModal: React.FC = () => {
                 <span>Desbloquear Bóveda</span>
               </>
             )}
-          </button>
+          </motion.button>
         </form>
 
-        <div className="mt-4 text-center">
+        <div className="text-center">
           <button
             type="button"
             onClick={signOut}
-            className="text-xs text-slate-400 hover:text-rose-400 transition"
+            className="auth-mode-toggle"
           >
             ¿No eres tú? Cambiar de usuario / Iniciar con otra cuenta
           </button>
         </div>
       </div>
-    </div>
+    </section>
   );
 };

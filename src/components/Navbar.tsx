@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useVault } from '@/context/VaultContext';
-import { Shield, Lock, KeyRound, Settings, LogOut, Menu, X } from 'lucide-react';
+import { Lock, KeyRound, Settings, LogOut, Menu, X } from 'lucide-react';
 
 interface NavbarProps { onOpenGenerator: () => void; onOpenSettings: () => void; }
 export const Navbar: React.FC<NavbarProps> = ({ onOpenGenerator, onOpenSettings }) => {
@@ -12,7 +13,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenGenerator, onOpenSettings 
   return <header className="sticky top-0 z-30 border-b border-slate-800/70 bg-[#0b0f19]/95 backdrop-blur-xl">
     <div className="relative mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:px-6">
       <div className="flex min-w-0 items-center gap-2.5">
-        <Shield className="h-7 w-7 shrink-0 text-indigo-400" aria-hidden="true" />
+        <Image src="/PV_ICON.png" width={34} height={34} alt="" priority className="navbar-brand-icon" />
         <div className="min-w-0"><h1 className="whitespace-nowrap text-sm font-semibold tracking-tight text-slate-100 sm:text-base">Pontorno Vault</h1>
           <p className="truncate text-xs text-slate-400"><span className="sm:hidden">{isSupabaseConnected ? 'Tu bóveda' : 'Demo local'}</span><span className="hidden sm:inline">{isSupabaseConnected ? 'Tus contraseñas, contigo' : 'Demo · Solo en este navegador'}</span></p></div>
       </div>

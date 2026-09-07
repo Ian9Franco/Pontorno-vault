@@ -11,6 +11,7 @@ import { PasswordGeneratorModal } from '@/components/PasswordGeneratorModal';
 import { SettingsModal } from '@/components/SettingsModal';
 import { CredentialPayload } from '@/lib/crypto';
 import { VaultLoading } from '@/components/vault/VaultLoading';
+import { AnimatePresence } from 'motion/react';
 
 export default function Home() {
   const {
@@ -56,7 +57,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#090d16] flex flex-col">
       {/* Keep submitted forms mounted so a failed unlock retains its actionable error. */}
-      {isLoading && <VaultLoading unlocking overlay />}
+      <AnimatePresence>{isLoading ? <VaultLoading key="vault-unlock" unlocking overlay /> : null}</AnimatePresence>
       <div inert={isLoading} className="flex min-h-screen flex-col">
       <Navbar
         onOpenGenerator={() => setIsGeneratorModalOpen(true)}

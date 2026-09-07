@@ -1,4 +1,7 @@
+'use client';
+
 import React from 'react';
+import { motion } from 'motion/react';
 import { VaultObject } from './VaultObject';
 
 /** Structural placeholders contain no real vault names, credentials or fake progress. */
@@ -12,7 +15,13 @@ export function VaultSkeleton() {
 
 /** Driven exclusively by real initialization/unlock work, never by an artificial timer. */
 export function VaultLoading({ unlocking = false, overlay = false }: { unlocking?: boolean; overlay?: boolean }) {
-  return <div className={`vault-loading ${overlay ? 'vault-loading-overlay' : ''}`}>
+  return <motion.div
+    className={`vault-loading ${overlay ? 'vault-loading-overlay' : ''}`}
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0, scale: 1.015 }}
+    transition={{ duration: 0.22, ease: 'easeOut' }}
+  >
     <div className="preload-console" role="status" aria-live="polite">
       <p className="technical-kicker">PONTORNO VAULT</p>
       <VaultObject animated />
@@ -22,5 +31,5 @@ export function VaultLoading({ unlocking = false, overlay = false }: { unlocking
       <span className="preload-caption">{unlocking ? 'ACCESO EN CURSO' : 'INICIANDO'}</span>
     </div>
     <VaultSkeleton />
-  </div>;
+  </motion.div>;
 }
