@@ -66,6 +66,10 @@ External configuration still required:
 
 `proxy.ts` generates a per-request nonce and applies a strict script CSP with `strict-dynamic`. The application only permits its own origin plus the configured Supabase origin for network connections. Because Argon2 runs as WebAssembly, the CSP explicitly allows WebAssembly evaluation without opening general production `unsafe-eval`.
 
+## Interface architecture
+
+The stage3 dashboard refactor is preserved. Its component boundaries, loading states, vault management rules, responsive layout and sensitive-state behavior are documented in [UI_ARCHITECTURE.md](./docs/UI_ARCHITECTURE.md).
+
 ## Recovery and sharing
 
 Cryptographic recovery and full multi-user key exchange are **not complete** and are not represented as finished features. The required designs are documented in [RECOVERY_AND_SHARING.md](./docs/RECOVERY_AND_SHARING.md).

@@ -10,6 +10,7 @@ import { CredentialModal } from '@/components/CredentialModal';
 import { PasswordGeneratorModal } from '@/components/PasswordGeneratorModal';
 import { SettingsModal } from '@/components/SettingsModal';
 import { CredentialPayload } from '@/lib/crypto';
+import { VaultLoading } from '@/components/vault/VaultLoading';
 
 export default function Home() {
   const {
@@ -24,6 +25,9 @@ export default function Home() {
   const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<{ id: string; payload: CredentialPayload } | null>(null);
+  const [initializing, setInitializing] = useState(true);
+
+  useEffect(() => { if (!isLoading) setInitializing(false); }, [isLoading]);
 
   useEffect(() => {
     if (!isUnlocked) {
@@ -47,8 +51,13 @@ export default function Home() {
   // Not logged in -> Show Unified Auth (Email, Display Name, Master Password)
   const isLoggedOut = isSupabaseConnected ? !user : !isUnlocked;
 
+  if (initializing) return <VaultLoading />;
+
   return (
     <main className="min-h-screen bg-[#090d16] flex flex-col">
+      {/* Keep submitted forms mounted so a failed unlock retains its actionable error. */}
+      {isLoading && <VaultLoading unlocking overlay />}
+      <div inert={isLoading} className="flex min-h-screen flex-col">
       <Navbar
         onOpenGenerator={() => setIsGeneratorModalOpen(true)}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
@@ -87,6 +96,7 @@ export default function Home() {
         onClose={() => setIsSettingsModalOpen(false)}
       />
       </>}
+      </div>
     </main>
   );
 }
