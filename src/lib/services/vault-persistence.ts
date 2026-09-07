@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createVaultKey, unwrapVaultKey, wrapVaultKeyForUser } from '../crypto';
+import { createVaultKey, hardenSymmetricKey, unwrapVaultKey, wrapVaultKeyForUser } from '../crypto';
 import type { VaultPermission, VaultType } from '../supabase/types';
 
 interface Membership {
@@ -27,22 +27,21 @@ export async function loadOwnedVaults(client: SupabaseClient, userMasterKey: Cry
     loaded.push({ id: row.vaults.id, name: row.vaults.name, type: row.vaults.type,
       key, permissions: row.permissions, isOwner: row.vaults.owner_user_id === userId });
   }
-  // Only a successful, empty membership response qualifies as first use.
   if (data.length === 0) {
     loaded.push(await createOwnedVault(client, userMasterKey, 'Mi Bóveda Personal', 'PERSONAL'));
   }
   return loaded;
 }
 
-/** Generate a key only for a new vault. The RPC atomically stores its owner wrapper. */
 export async function createOwnedVault(
   client: SupabaseClient,
   userMasterKey: CryptoKey,
   name: string,
   type: 'PERSONAL' | 'SHARED',
 ) {
-  const key = await createVaultKey();
-  const wrapped = await wrapVaultKeyForUser(key, userMasterKey);
+  const temporaryKey = await createVaultKey();
+  const wrapped = await wrapVaultKeyForUser(temporaryKey, userMasterKey);
+  const key = await hardenSymmetricKey(temporaryKey, ['encrypt', 'decrypt']);
   const { data: id, error } = await client.rpc('create_owned_vault', {
     p_name: name,
     p_type: type,
