@@ -3,6 +3,10 @@ import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { VaultProvider } from '@/context/VaultContext';
 
+// A nonce-based CSP requires request-time rendering so framework scripts receive
+// the per-request nonce generated in proxy.ts.
+export const dynamic = 'force-dynamic';
+
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   display: 'swap',
