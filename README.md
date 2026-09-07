@@ -1,175 +1,95 @@
-# Family Vault (Pontorno Vault) 🔐
+# Pontorno Vault 🔐
 
-> **Gestor de contraseñas y credenciales familiares de arquitectura Zero-Knowledge y Envelope Encryption.**
+Password and credential vault for personal/family use, built around client-side envelope encryption and strict Supabase authorization.
 
-![Next.js](https://img.shields.io/badge/Next.js-16%20(App%20Router)-black?style=flat-square&logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)
-![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%2B%20RLS-3ECF8E?style=flat-square&logo=supabase)
-![Web Crypto](https://img.shields.io/badge/Crypto-AES--256--GCM%20%2B%20Argon2id-emerald?style=flat-square)
-![Tests](https://img.shields.io/badge/Tests-12%2F12%20Passing-brightgreen?style=flat-square&logo=vitest)
+## Security model
 
----
-
-## 🌟 Visión del Proyecto
-
-**Family Vault** es una aplicación web moderna diseñada para almacenar, organizar y compartir de forma segura credenciales de servicios y suscripciones familiares bajo un estricto modelo **Zero-Knowledge**.
-
-### El principio rector:
-> **Ningún secreto necesario para descifrar una credencial abandona el dispositivo del usuario sin estar previamente cifrado.**
-> 
-> Si la base de datos de Supabase fuese completamente filtrada, el atacante solo obtendría *ciphertext*, nonces y metadatos públicos, siendo matemáticamente incapaz de leer las credenciales sin la contraseña maestra del usuario.
-
----
-
-## 🛡️ Arquitectura Criptográfica & Envelope Encryption
-
-El sistema no utiliza una única clave global ni deriva las credenciales directamente de la contraseña maestra. Implementa una **jerarquía de claves por envoltura (Envelope Encryption)**:
+Pontorno Vault deliberately separates two questions:
 
 ```text
-               Master Password (Memoria del navegador)
-                           + Salt (16 bytes CSPRNG)
-                                   │
-                                   ▼ [Argon2id WASM: 64MB, 3 iter, 4 hilos]
-                      KEK (Key Encryption Key - 256 bits)
-                                   │
-                                   ▼ [AES-256-GCM Unwrap]
-                   User Master Key (256 bits aleatoria)
-                                   │
-                    ┌──────────────┴──────────────┐
-                    ▼                             ▼
-       Personal Vault Key (256b)      Shared Family Vault Key (256b)
-                    │                             │
-                    ▼ [AES-256-GCM Decrypt]        ▼ [AES-256-GCM Decrypt]
-         Credenciales Personales       Credenciales Familiares Compartidas
+Google / Supabase Auth  -> Who are you? / which rows may you access?
+Vault secret            -> Can this device unwrap the cryptographic keys?
 ```
 
-### Propiedades Clave:
-1. **Separación entre Autenticación y Autorización Criptográfica**:
-   - **Supabase Auth**: Responde *"¿Quién eres?"* mediante cuenta y sesión.
-   - **Bóveda Criptográfica**: Responde *"¿Tienes la llave para abrir los datos?"* únicamente en el cliente.
-2. **Rotación de Contraseña Maestra sin Recifrado**:
-   - Al cambiar la contraseña maestra, **únicamente se re-envuelve la `UserMasterKey` con la nueva `KEK`**.
-   - No es necesario recifrar ninguna credencial ni ninguna clave de bóveda.
-3. **Compartición Familiar Segura**:
-   - No existe una "contraseña familiar compartida".
-   - Cada bóveda compartida posee su propia `VaultKey` simétrica, la cual se envuelve y distribuye de forma independiente para la `UserMasterKey` de cada miembro autorizado.
-4. **Protección de Metadatos Sensibles**:
-   - El payload completo (`platform`, `username`, `password`, `url`, `notes`) se cifra dentro del `encrypted_payload`. Supabase nunca ve qué plataforma ni qué usuario almacenas.
+For the primary synced flow, Google authenticates the account and a **different vault secret** is entered only after authentication. That vault secret is processed in the browser with Argon2id and is not used as the Google or Supabase password.
 
----
+> Legacy note: accounts created before this separation can still use the password-based **Acceso legado** only to migrate. Those accounts should link Google from Settings before rotating the vault secret.
 
-## 🔬 Especificaciones Técnicas
-
-| Componente | Algoritmo / Estándar | Parámetros |
-| :--- | :--- | :--- |
-| **KDF (Key Derivation)** | **Argon2id (WebAssembly)** | `memoryCost: 64MB`, `timeCost: 3`, `parallelism: 4`, `hashLength: 32 bytes` |
-| **Cifrado Simétrico** | **AES-256-GCM** | `tagLength: 128 bits`, `IV / Nonce: 96 bits (CSPRNG)` vía `crypto.subtle` |
-| **Generador de Entropía** | **Web Crypto CSPRNG** | `crypto.getRandomValues()` (nunca `Math.random()`) |
-| **Auto-Lock de Sesión** | Temporizador en memoria | 5 min de inactividad $\to$ destrucción de `CryptoKey` en memoria RAM |
-| **Base de Datos** | **PostgreSQL (Supabase)** | **Row Level Security (RLS)** estricto por membresía |
-
----
-
-## 📁 Estructura del Proyecto
+### Key hierarchy
 
 ```text
-├── sql/                                    # Scripts SQL y RLS para Supabase
-│   ├── 00_all_tables_complete.sql          # Script All-in-One para Supabase SQL Editor
-│   ├── 01_profiles.sql                     # Perfiles de usuario vinculados a auth.users
-│   ├── 02_user_crypto.sql                  # Metadatos criptográficos (Salts, UserMasterKey envuelta)
-│   ├── 03_families.sql                     # Grupos y membresías familiares (OWNER, ADMIN, MEMBER)
-│   ├── 04_vaults.sql                       # Bóvedas personales y compartidas con VaultKey envuelta
-│   └── 05_credentials.sql                  # Credenciales cifradas con AES-256-GCM
-│
-├── src/
-│   ├── app/                                # Next.js 16 App Router
-│   │   ├── globals.css                     # Tailwind CSS v4 & diseño dark
-│   │   ├── layout.tsx                      # RootLayout con VaultProvider
-│   │   └── page.tsx                        # Orquestación de vistas (Auth, Onboarding, Unlock, Vault)
-│   │
-│   ├── components/                         # Componentes de interfaz interactiva
-│   │   ├── Navbar.tsx                      # Header con estado, auto-lock countdown y accesos rápidos
-│   │   ├── AuthModal.tsx                   # Registro e inicio de sesión en Supabase
-│   │   ├── OnboardingModal.tsx             # Configuración inicial de Contraseña Maestra (Argon2id)
-│   │   ├── UnlockModal.tsx                 # Desbloqueo criptográfico en memoria
-│   │   ├── VaultView.tsx                   # Vista principal de bóvedas, buscador y credenciales
-│   │   ├── CredentialModal.tsx             # Modal para crear/editar credenciales cifradas
-│   │   ├── PasswordGeneratorModal.tsx      # Generador de contraseñas y passphrases seguras
-│   │   └── SettingsModal.tsx               # Rotación de contraseña maestra y ajuste de auto-lock
-│   │
-│   ├── context/
-│   │   └── VaultContext.tsx                # Gestor de sesión criptográfica en memoria RAM
-│   │
-│   ├── lib/
-│   │   ├── crypto/                         # Núcleo Criptográfico Zero-Knowledge
-│   │   │   ├── argon.ts                    # Derivación KEK con Argon2id (WASM)
-│   │   │   ├── aes.ts                      # Cifrado/descifrado autenticado AES-256-GCM
-│   │   │   ├── keys.ts                     # Generación y envoltura de UserMasterKey
-│   │   │   ├── vault.ts                    # Compartición de VaultKey y rotación de contraseñas
-│   │   │   ├── serialization.ts            # Conversiones Base64, Hex, Buffer y UTF-8
-│   │   │   ├── types.ts                    # Tipos del subsistema criptográfico
-│   │   │   └── __tests__/crypto.test.ts    # Suite de pruebas unitarias criptográficas
-│   │   │
-│   │   ├── security/                       # Utilidades de seguridad
-│   │   │   ├── generator.ts                # Generador seguro de contraseñas con CSPRNG
-│   │   │   ├── clipboard.ts                # Portapapeles seguro con auto-clear
-│   │   │   └── __tests__/generator.test.ts # Pruebas del generador y medidor de entropía
-│   │   │
-│   │   └── supabase/
-│   │       ├── client.ts                   # Inicialización cliente Supabase
-│   │       └── types.ts                    # Mapeo de tipos de base de datos
+Vault secret
+   + random salt
+      |
+      v
+Argon2id KEK
+      |
+      v
+wrapped random UserMasterKey
+      |
+      +--> wrapped VaultKey A --> AES-256-GCM credentials
+      +--> wrapped VaultKey B --> AES-256-GCM credentials
 ```
 
----
+- Argon2id default: 64 MiB memory, 3 iterations, parallelism 4.
+- AES-256-GCM with 96-bit random nonces and 128-bit authentication tags.
+- New credential records use crypto version 2 with authenticated additional data for protocol domain separation.
+- Runtime keys loaded from storage are non-extractable Web Crypto keys where the flow permits it.
+- Sensitive credential fields (`platform`, `username`, `password`, `url`, `notes`) live inside the encrypted payload.
+- Decrypted domains are not sent to third-party favicon/icon services.
+- Auto-lock clears application references to runtime keys and decrypted credential state.
 
-## 🚀 Inicio Rápido
+## What zero-knowledge means here
 
-### 1. Clonar el repositorio e instalar dependencias:
-```bash
-git clone https://github.com/Ian9Franco/Pontorno-vault.git
-cd Pontorno-vault
-npm install
-```
+A database dump should not be enough to decrypt credentials. Supabase stores ciphertext, salts, nonces, KDF metadata and wrapped keys, not the plaintext VaultKey/UserMasterKey.
 
-### 2. Configurar la Base de Datos en Supabase:
-1. Crea un proyecto en [Supabase](https://supabase.com).
-2. Usa las migraciones de `supabase/migrations/` en orden. No ejecutes los scripts históricos de `sql/`: contienen políticas inseguras.
-3. Para bases existentes y el alcance actual de sharing, sigue [Security Foundation](./supabase/SECURITY_FOUNDATION.md). La reconciliación de OTP y otros cambios históricos con las migraciones sigue pendiente.
+This does **not** mean an unlocked web application is invulnerable. A compromised frontend deployment, XSS, malicious extension or endpoint malware can potentially read plaintext after legitimate decryption. See [SECURITY.md](./SECURITY.md) and [the threat model](./docs/THREAT_MODEL.md).
 
-### 3. Configurar variables de entorno:
-Crea un archivo `.env.local` en la raíz del proyecto:
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key-publica
-```
+## Authorization layer
 
-### 4. Iniciar el servidor de desarrollo:
-```bash
-npm run dev
-```
-Abre tu navegador en [http://localhost:3000](http://localhost:3000).
+The production Supabase schema uses Row Level Security around profiles, crypto metadata, families, memberships, vaults and credentials. Vault creation crosses an intentional RPC boundary that derives ownership from `auth.uid()` instead of trusting a client-supplied owner.
 
----
+Historical `sql/` scripts are not the deployment source of truth. Use `supabase/migrations/` and review [Security Foundation](./supabase/SECURITY_FOUNDATION.md) plus [Production Security Status](./supabase/PRODUCTION_SECURITY_STATUS.md).
 
-## 🧪 Pruebas Automatizadas
+## Authentication migration
 
-El proyecto cuenta con una suite completa de pruebas unitarias en **Vitest** que validan la solidez del núcleo criptográfico:
+New synced users should use Google. Existing password-auth users should follow [AUTH_MIGRATION.md](./docs/AUTH_MIGRATION.md) so the same Supabase user ID keeps ownership of existing vaults.
+
+External configuration still required:
+
+1. enable Google in Supabase Auth;
+2. configure allowed redirect URLs;
+3. enable Manual Identity Linking for the migration button;
+4. enable leaked-password protection while legacy password login exists.
+
+## CSP and privacy
+
+`proxy.ts` generates a per-request nonce and applies a strict script CSP with `strict-dynamic`. The application only permits its own origin plus the configured Supabase origin for network connections. Because Argon2 runs as WebAssembly, the CSP explicitly allows WebAssembly evaluation without opening general production `unsafe-eval`.
+
+## Recovery and sharing
+
+Cryptographic recovery and full multi-user key exchange are **not complete** and are not represented as finished features. The required designs are documented in [RECOVERY_AND_SHARING.md](./docs/RECOVERY_AND_SHARING.md).
+
+## Development
 
 ```bash
+npm ci
+npm run typecheck
 npm test
+npm run build
 ```
 
-### Casos de prueba validados (12/12):
-- [x] **Derivación KEK determinista**: Mismo password y salt producen idéntica clave de 256 bits; variaciones producen claves distintas.
-- [x] **Round-trip AES-256-GCM**: Cifrado y descifrado íntegro de payloads de texto plano.
-- [x] **Detección de manipulación (Tamper Resistance)**: Cualquier alteración en el ciphertext o tag de autenticación lanza un error inmediato.
-- [x] **Flujo de desbloqueo**: Validación con contraseña maestra correcta y rechazo de contraseñas incorrectas.
-- [x] **Envelope Encryption multiusuario (Shared Vault)**: Dos usuarios con distintas identidades criptográficas descifran los datos de la bóveda compartida.
-- [x] **Rotación de Contraseña Maestra**: Cambio de contraseña sin modificar los registros de credenciales ni las `VaultKeys`.
-- [x] **Generador seguro CSPRNG & Passphrases**: Entropía criptográfica y cálculo de fortaleza visual.
+Environment:
 
----
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-key
+```
 
-## 📄 Licencia
+The public/publishable Supabase key is expected to be present in the browser. Authorization depends on RLS; never expose a `service_role`/secret key to client code.
 
-Desarrollado bajo licencia [ISC](./package.json).
+## Security gate
+
+Pull requests and pushes to `main` run a GitHub Actions gate with reproducible install, TypeScript checking, unit/security tests, production build and a critical production dependency audit. Dependabot tracks npm and GitHub Actions updates.
+
+Operational hardening requirements are in [DEPLOYMENT_HARDENING.md](./docs/DEPLOYMENT_HARDENING.md).
