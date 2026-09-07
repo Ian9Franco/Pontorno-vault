@@ -1,11 +1,12 @@
 'use client';
 
+import { vaultErrorMessage } from '@/lib/security/vault-access';
 import React, { useState } from 'react';
 import { useVault } from '@/context/VaultContext';
 import { Lock, Unlock, Eye, EyeOff, LogOut } from 'lucide-react';
 
 export const UnlockModal: React.FC = () => {
-  const { unlock, isLoading, user, userProfile, signOut } = useVault();
+  const { unlock, isLoading, accessError, user, userProfile, signOut } = useVault();
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +18,7 @@ export const UnlockModal: React.FC = () => {
     try {
       await unlock(password);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Contraseña maestra incorrecta.');
+      setError(vaultErrorMessage(err));
     }
   };
 
@@ -25,8 +26,8 @@ export const UnlockModal: React.FC = () => {
   const email = user?.email || userProfile?.email || '';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
-      <div className="w-full max-w-md bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-8 animate-slide-up text-center">
+    <div className="mx-auto w-full max-w-md px-5 py-8 sm:py-14">
+      <div className="text-center">
         {/* Lock Icon */}
         <div className="mx-auto w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-lg shadow-indigo-950/60 mb-4">
           <Lock className="w-6 h-6" />
@@ -61,31 +62,31 @@ export const UnlockModal: React.FC = () => {
           </div>
         )}
 
-        {error && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-950/50 border border-rose-800/40 text-rose-300 text-xs text-left">
-            {error}
+        {(error || accessError) && (
+          <div role="alert" className="mb-4 p-3 rounded-xl bg-rose-950/50 border border-rose-800/40 text-rose-300 text-xs text-left">
+            {error || accessError}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+            <label htmlFor="unlock-password" className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
               Contraseña Maestra
             </label>
             <div className="relative">
               <input
-                type={showPassword ? 'text' : 'password'}
+                id="unlock-password" autoComplete="current-password" type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Ingresa tu contraseña maestra..."
-                className="w-full px-4 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs pr-10 shadow-sm"
+                className="vault-input pr-14"
                 required
                 autoFocus
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200"
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center text-slate-400 hover:text-slate-200"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -95,7 +96,7 @@ export const UnlockModal: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading || !password}
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-xs shadow-lg shadow-indigo-950/50 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            className="vault-primary w-full"
           >
             {isLoading ? (
               <>

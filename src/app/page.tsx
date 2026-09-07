@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVault } from '@/context/VaultContext';
 import { Navbar } from '@/components/Navbar';
 import { AuthModal } from '@/components/AuthModal';
@@ -25,6 +25,15 @@ export default function Home() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<{ id: string; payload: CredentialPayload } | null>(null);
 
+  useEffect(() => {
+    if (!isUnlocked) {
+      setIsCredentialModalOpen(false);
+      setIsSettingsModalOpen(false);
+      setIsGeneratorModalOpen(false);
+      setEditingItem(null);
+    }
+  }, [isUnlocked]);
+
   const handleOpenAddCredential = () => {
     setEditingItem(null);
     setIsCredentialModalOpen(true);
@@ -34,17 +43,6 @@ export default function Home() {
     setEditingItem(item);
     setIsCredentialModalOpen(true);
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-          <span className="text-xs text-gray-400 font-medium tracking-wide">Cargando Bóveda Familiar...</span>
-        </div>
-      </div>
-    );
-  }
 
   // Not logged in -> Show Unified Auth (Email, Display Name, Master Password)
   const isLoggedOut = isSupabaseConnected ? !user : !isUnlocked;
@@ -70,7 +68,8 @@ export default function Home() {
         />
       )}
 
-      {/* Modals */}
+      {/* Secret-bearing modals unmount when the vault locks. */}
+      {isUnlocked && <>
       <CredentialModal
         isOpen={isCredentialModalOpen}
         onClose={() => setIsCredentialModalOpen(false)}
@@ -87,6 +86,7 @@ export default function Home() {
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
       />
+      </>}
     </main>
   );
 }

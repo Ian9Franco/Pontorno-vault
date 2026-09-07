@@ -1,3 +1,4 @@
+-- HISTORICAL ONLY: unsafe policies. Do not deploy. See supabase/SECURITY_FOUNDATION.md.
 -- =============================================================================
 -- TABLAS: families y family_members (Workspaces y roles familiares)
 -- =============================================================================

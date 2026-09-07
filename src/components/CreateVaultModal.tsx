@@ -1,5 +1,6 @@
 'use client';
 
+import { vaultErrorMessage } from '@/lib/security/vault-access';
 import React, { useState } from 'react';
 import { useVault } from '@/context/VaultContext';
 import { FolderLock, Users, X, Plus, ShieldCheck, AlertCircle } from 'lucide-react';
@@ -12,7 +13,7 @@ interface CreateVaultModalProps {
 export const CreateVaultModal: React.FC<CreateVaultModalProps> = ({ isOpen, onClose }) => {
   const { createVault } = useVault();
   const [name, setName] = useState('');
-  const [type, setType] = useState<'PERSONAL' | 'SHARED'>('SHARED');
+  const [type, setType] = useState<'PERSONAL' | 'SHARED'>('PERSONAL');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,14 +30,14 @@ export const CreateVaultModal: React.FC<CreateVaultModalProps> = ({ isOpen, onCl
       setName('');
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al crear la bóveda');
+      setError(vaultErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
+    <div className="vault-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
       <div className="w-full max-w-md bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-7 animate-slide-up">
         <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-5">
           <div className="flex items-center gap-2.5">
@@ -54,7 +55,7 @@ export const CreateVaultModal: React.FC<CreateVaultModalProps> = ({ isOpen, onCl
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-2xl bg-rose-950/50 border border-rose-800/40 text-rose-300 text-xs flex items-center gap-2">
+          <div role="alert" className="mb-4 p-3 rounded-2xl bg-rose-950/50 border border-rose-800/40 text-rose-300 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -99,7 +100,7 @@ export const CreateVaultModal: React.FC<CreateVaultModalProps> = ({ isOpen, onCl
                   <span className="font-semibold text-xs text-slate-100">Familiar</span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-snug">
-                  Compartida con todos los miembros de la familia.
+                  Al crearla, solo tú tendrás acceso. Las invitaciones aún no están disponibles.
                 </p>
               </button>
 

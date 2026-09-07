@@ -1,5 +1,6 @@
 'use client';
 
+import { vaultErrorMessage } from '@/lib/security/vault-access';
 import React, { useState } from 'react';
 import { useVault } from '@/context/VaultContext';
 import { KeyRound, Shield, Clock, Database, Check, X, RefreshCw, User, Edit3, Lock } from 'lucide-react';
@@ -20,6 +21,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   } = useVault();
 
   const [displayName, setDisplayName] = useState(userProfile?.displayName || '');
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
 
   const [oldPassword, setOldPassword] = useState('');
@@ -34,9 +37,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (displayName.trim()) {
-      await updateDisplayName(displayName.trim());
-      setNameSaved(true);
-      setTimeout(() => setNameSaved(false), 2500);
+      if (isSavingProfile) return;
+      setProfileError(null);
+      setNameSaved(false);
+      setIsSavingProfile(true);
+      try {
+        await updateDisplayName(displayName.trim());
+        setNameSaved(true);
+        setTimeout(() => setNameSaved(false), 2500);
+      } catch (error) {
+        setProfileError(vaultErrorMessage(error));
+      } finally {
+        setIsSavingProfile(false);
+      }
     }
   };
 
@@ -63,14 +76,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
       setNewPassword('');
       setConfirmNewPassword('');
     } catch (err: unknown) {
-      setRotateError(err instanceof Error ? err.message : 'Error al cambiar contraseña');
+      setRotateError(vaultErrorMessage(err));
     } finally {
       setIsRotating(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
+    <div className="vault-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
       <div className="w-full max-w-lg bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-7 animate-slide-up max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-800/80">
           <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
@@ -91,6 +104,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               Este nombre identifica quién creó o editó cada contraseña en la bóveda familiar.
             </p>
 
+            {profileError && <p role="alert" className="mb-3 text-xs text-rose-300">{profileError}</p>}
             {nameSaved && (
               <div className="mb-3 p-2.5 rounded-xl bg-indigo-950/50 border border-indigo-800/40 text-indigo-300 text-xs flex items-center gap-2">
                 <Check className="w-4 h-4" />
@@ -109,10 +123,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               />
               <button
                 type="submit"
+                disabled={isSavingProfile}
                 className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
               >
                 <Check className="w-3.5 h-3.5" />
-                <span>Guardar</span>
+                <span>{isSavingProfile ? 'Guardando...' : 'Guardar'}</span>
               </button>
             </form>
           </div>

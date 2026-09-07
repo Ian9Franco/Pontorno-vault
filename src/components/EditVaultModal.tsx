@@ -1,5 +1,6 @@
 'use client';
 
+import { canManageVault, vaultErrorMessage } from '@/lib/security/vault-access';
 import React, { useState, useEffect } from 'react';
 import { useVault, VaultEntity } from '@/context/VaultContext';
 import { FolderLock, Users, X, Edit3, Trash2, AlertTriangle, AlertCircle } from 'lucide-react';
@@ -27,7 +28,7 @@ export const EditVaultModal: React.FC<EditVaultModalProps> = ({ isOpen, onClose,
     }
   }, [vault, isOpen]);
 
-  if (!isOpen || !vault) return null;
+  if (!isOpen || !vault || !canManageVault(vault)) return null;
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +40,7 @@ export const EditVaultModal: React.FC<EditVaultModalProps> = ({ isOpen, onClose,
       await updateVault(vault.id, name.trim(), type);
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al actualizar bóveda');
+      setError(vaultErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -57,14 +58,14 @@ export const EditVaultModal: React.FC<EditVaultModalProps> = ({ isOpen, onClose,
       await removeVault(vault.id);
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al eliminar bóveda');
+      setError(vaultErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
+    <div className="vault-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
       <div className="w-full max-w-md bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-7 animate-slide-up">
         <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-5">
           <div className="flex items-center gap-2.5">
@@ -82,7 +83,7 @@ export const EditVaultModal: React.FC<EditVaultModalProps> = ({ isOpen, onClose,
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-2xl bg-rose-950/50 border border-rose-800/40 text-rose-300 text-xs flex items-center gap-2">
+          <div role="alert" className="mb-4 p-3 rounded-2xl bg-rose-950/50 border border-rose-800/40 text-rose-300 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -124,7 +125,7 @@ export const EditVaultModal: React.FC<EditVaultModalProps> = ({ isOpen, onClose,
                     <span className="font-semibold text-xs text-slate-100">Familiar</span>
                   </div>
                   <p className="text-[11px] text-slate-400 leading-snug">
-                    Compartida con todos los miembros de la familia.
+                    Solo los miembros autorizados tienen acceso. Cambiar el tipo no añade miembros.
                   </p>
                 </button>
 
@@ -148,6 +149,9 @@ export const EditVaultModal: React.FC<EditVaultModalProps> = ({ isOpen, onClose,
               </div>
             </div>
 
+            {vault.type === 'SHARED' && type === 'PERSONAL' && (
+              <p role="status" className="text-xs text-amber-200">Solo podrás convertirla en privada si no tiene otros miembros. Cambiar el tipo no revoca accesos.</p>
+            )}
             {/* Actions */}
             <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between">
               <button

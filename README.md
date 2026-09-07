@@ -133,8 +133,8 @@ npm install
 
 ### 2. Configurar la Base de Datos en Supabase:
 1. Crea un proyecto en [Supabase](https://supabase.com).
-2. Ve al **SQL Editor** y ejecuta el script completo:
-   👉 [`sql/00_all_tables_complete.sql`](./sql/00_all_tables_complete.sql)
+2. Usa las migraciones de `supabase/migrations/` en orden. No ejecutes los scripts históricos de `sql/`: contienen políticas inseguras.
+3. Para bases existentes y el alcance actual de sharing, sigue [Security Foundation](./supabase/SECURITY_FOUNDATION.md). La reconciliación de OTP y otros cambios históricos con las migraciones sigue pendiente.
 
 ### 3. Configurar variables de entorno:
 Crea un archivo `.env.local` en la raíz del proyecto:

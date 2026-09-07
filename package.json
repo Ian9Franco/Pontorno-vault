@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
+    "test:security": "vitest run supabase/tests src/lib/services/__tests__/vault-persistence.test.ts",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "keywords": [],
@@ -25,6 +27,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.3.0",
     "@types/react": "^19.2.18",

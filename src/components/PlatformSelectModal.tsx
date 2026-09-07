@@ -39,7 +39,7 @@ export const PlatformSelectModal: React.FC<PlatformSelectModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
+    <div className="vault-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
       <div className="w-full max-w-2xl bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-5 sm:p-6 animate-slide-up flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 flex-shrink-0">

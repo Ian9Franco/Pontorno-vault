@@ -59,7 +59,7 @@ export const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
   const strength = estimatePasswordStrength(generatedPassword);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
+    <div className="vault-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
       <div className="w-full max-w-md bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-7 animate-slide-up">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2.5">

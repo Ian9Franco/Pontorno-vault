@@ -1,3 +1,4 @@
+-- HISTORICAL ONLY: unsafe policies. Do not deploy. See supabase/SECURITY_FOUNDATION.md.
 -- =============================================================================
 -- TABLAS: vaults y vault_members (Bóvedas personales y compartidas con Zero-Knowledge)
 -- =============================================================================

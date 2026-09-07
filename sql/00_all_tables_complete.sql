@@ -1,3 +1,4 @@
+-- HISTORICAL ONLY: unsafe policies. Do not deploy. See supabase/SECURITY_FOUNDATION.md.
 -- =============================================================================
 -- Family Vault — Script Completo All-in-One para Supabase SQL Editor
 -- Copia y pega todo el contenido de este archivo en el editor SQL de Supabase

@@ -9,7 +9,6 @@ import {
   Copy,
   Check,
   Trash2,
-  Mail,
   ExternalLink,
   Inbox,
 } from 'lucide-react';
@@ -25,13 +24,9 @@ export interface VerificationCodeItem {
   created_at: string;
 }
 
-interface OtpInboxWidgetProps {
-  onOpenGuide: () => void;
-}
-
 const LOCAL_CODES_KEY = 'family_vault_demo_otp_codes';
 
-export const OtpInboxWidget: React.FC<OtpInboxWidgetProps> = ({ onOpenGuide }) => {
+export const OtpInboxWidget: React.FC = () => {
   const [codes, setCodes] = useState<VerificationCodeItem[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -54,6 +49,7 @@ export const OtpInboxWidget: React.FC<OtpInboxWidgetProps> = ({ onOpenGuide }) =
   }, []);
 
   useEffect(() => {
+    if (isSupabaseConfigured) return;
     fetchCodes();
     const interval = setInterval(fetchCodes, 8000);
     return () => clearInterval(interval);
@@ -76,6 +72,7 @@ export const OtpInboxWidget: React.FC<OtpInboxWidgetProps> = ({ onOpenGuide }) =
   };
 
   const handleSimulateTest = async (service: 'Disney+' | 'Netflix' | 'Amazon Prime') => {
+    if (isSupabaseConfigured) return;
     const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 15 * 60000).toISOString();
@@ -100,13 +97,19 @@ export const OtpInboxWidget: React.FC<OtpInboxWidgetProps> = ({ onOpenGuide }) =
     setCodes((prev) => [newCode, ...prev]);
   };
 
+  if (isSupabaseConfigured) {
+    return <div role="status" className="rounded-2xl border border-slate-800 p-4 text-sm text-slate-400">
+      El inbox de códigos está temporalmente deshabilitado.
+    </div>;
+  }
+
   if (codes.length === 0) {
     return (
       <div className="bg-[#111624] border border-slate-800/80 rounded-2xl p-3.5 transition shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
             <Inbox className="w-4 h-4 text-indigo-400" />
-            <span>Códigos de Verificación de Streaming (Disney / Netflix)</span>
+            <span>Códigos simulados — demo local</span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -115,13 +118,6 @@ export const OtpInboxWidget: React.FC<OtpInboxWidgetProps> = ({ onOpenGuide }) =
               title="Simular llegada de código de Disney+"
             >
               + Probar Código
-            </button>
-            <button
-              onClick={onOpenGuide}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-indigo-300 hover:bg-slate-800/80 transition"
-              title="Configurar reenvío de correo"
-            >
-              <Mail className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -134,7 +130,7 @@ export const OtpInboxWidget: React.FC<OtpInboxWidgetProps> = ({ onOpenGuide }) =
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-300">
           <Bell className="w-4 h-4 animate-bounce text-indigo-400" />
-          <span>Códigos Recibidos ({codes.length})</span>
+          <span>Códigos simulados ({codes.length})</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -142,13 +138,6 @@ export const OtpInboxWidget: React.FC<OtpInboxWidgetProps> = ({ onOpenGuide }) =
             className="px-2.5 py-1 text-xs font-medium rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/70 transition shadow-sm"
           >
             + Simular Netflix
-          </button>
-          <button
-            onClick={onOpenGuide}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-indigo-300 hover:bg-slate-800/80 transition"
-            title="Cómo funciona el reenvío"
-          >
-            <Mail className="w-4 h-4" />
           </button>
         </div>
       </div>

@@ -1379,6 +1379,23 @@ Esto convierte al proyecto en una pieza considerablemente más fuerte para portf
 
 # 42. Roadmap recomendado
 
+## Próximos pasos — actualización 2026-09-06
+
+Actualización 2026-09-07: Security Foundation y el cierre del OTP inseguro están
+aplicados en la base de producción. El frontend nuevo está pendiente de despliegue;
+ver [estado actual de seguridad](supabase/PRODUCTION_SECURITY_STATUS.md).
+
+- [x] Implementar Security Foundation local: RLS, creación atómica de bóvedas y bloqueo del autoingreso. Última ejecución local: 32 tests pasando, typecheck y build correctos. Pendiente de despliegue.
+- [x] Preparar el plan de validación en staging y el inventario de membresías para revisión: [plan de despliegue](supabase/STAGING_VALIDATION.md).
+- [ ] Ejecutar la validación en un Supabase de staging aislado, revisar membresías existentes y reconciliar el historial remoto antes del despliegue.
+- [ ] **P1 — CI obligatorio en cada push y PR:** configurar GitHub Actions con `npm ci`, typecheck, lint, tests (incluidos RLS y regresiones criptográficas), build y auditoría de dependencias. Añadir configuración de lint y validación de migraciones; exigir los checks con protección de la rama principal. CI todavía no está implementado. Criterio de cierre: PR con checks verdes y un fallo deliberado bloqueando el merge.
+- [ ] **P0 — OTP:** autenticar el webhook y aislar inbox/códigos por familia, con TTL y límites de uso.
+- [ ] **P0 — Sharing:** implementar invitaciones con distribución cifrada de la misma VaultKey, aceptación atómica y pruebas entre usuarios; después completar revocación y rotación.
+- [ ] **P1 — Hardening y esquema:** CSP/headers, consolidación del esquema histórico completo en migraciones y documentación coherente con producción.
+
+Orden inmediato acordado: terminar los tests locales, preparar staging e inventario,
+validar y revisar el despliegue. CI queda registrado como trabajo pendiente.
+
 ## Fase 1 — Diseño
 
 Antes de construir pantallas:

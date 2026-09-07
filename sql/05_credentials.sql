@@ -1,3 +1,4 @@
+-- HISTORICAL ONLY: unsafe policies. Do not deploy. See supabase/SECURITY_FOUNDATION.md.
 -- =============================================================================
 -- TABLA: credentials (Credenciales cifradas con AES-256-GCM)
 -- =============================================================================

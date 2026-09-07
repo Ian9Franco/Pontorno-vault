@@ -45,3 +45,9 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+# Supabase CLI local cache
+/supabase/.temp/
+
+# Local deployment review snapshots (account and membership metadata)
+/supabase/review-private/

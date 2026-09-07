@@ -1,5 +1,6 @@
 'use client';
 
+import { canWriteCredentials, vaultErrorMessage } from '@/lib/security/vault-access';
 import React, { useState, useEffect } from 'react';
 import { useVault } from '@/context/VaultContext';
 import { CredentialPayload } from '@/lib/crypto';
@@ -22,7 +23,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
   onSave,
   initialData,
 }) => {
-  const { vaults, activeVaultId } = useVault();
+  const { vaults, activeVaultId, credentials } = useVault();
   const [targetVaultId, setTargetVaultId] = useState<string>(activeVaultId || vaults[0]?.id || '');
   const [platform, setPlatform] = useState('');
   const [username, setUsername] = useState('');
@@ -35,7 +36,10 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
   const [isPlatformModalOpen, setIsPlatformModalOpen] = useState(false);
 
   useEffect(() => {
+    setError(null);
+    setShowPassword(false);
     if (initialData) {
+      setTargetVaultId(credentials.find(c => c.id === initialData.id)?.vaultId || '');
       setPlatform(initialData.payload.platform || '');
       setUsername(initialData.payload.username || '');
       setPassword(initialData.payload.password || '');
@@ -47,9 +51,9 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
       setPassword('');
       setUrl('');
       setNotes('');
-      setTargetVaultId(activeVaultId || vaults[0]?.id || '');
+      setTargetVaultId(vaults.find(v => v.id === activeVaultId && canWriteCredentials(v))?.id || vaults.find(canWriteCredentials)?.id || '');
     }
-  }, [initialData, isOpen, activeVaultId, vaults]);
+  }, [initialData, isOpen, activeVaultId, vaults, credentials]);
 
   if (!isOpen) return null;
 
@@ -73,6 +77,10 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canWriteCredentials(vaults.find(v => v.id === targetVaultId))) {
+      setError('No tienes permiso de escritura en esta bóveda.');
+      return;
+    }
     if (!platform || !username || !password) {
       setError('Por favor completa los campos requeridos (Servicio, Usuario y Contraseña).');
       return;
@@ -94,7 +102,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
       );
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al guardar');
+      setError(vaultErrorMessage(err));
     } finally {
       setIsSaving(false);
     }
@@ -105,7 +113,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
+      <div className="vault-dialog-backdrop fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
         <div className="w-full max-w-lg bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-7 animate-slide-up max-h-[92vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
@@ -117,13 +125,13 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
                 <p className="text-xs text-slate-400">Guarda de forma segura tus datos de acceso</p>
               </div>
             </div>
-            <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-white">
+            <button aria-label="Cerrar formulario" onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-white">
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 rounded-xl bg-rose-950/50 border border-rose-800/40 text-rose-300 text-xs">
+            <div role="alert" className="mb-4 p-3 rounded-xl bg-rose-950/50 border border-rose-800/40 text-rose-300 text-xs">
               {error}
             </div>
           )}
@@ -140,19 +148,22 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
                 <span>Guardar en la Bóveda *</span>
               </label>
               <select
+                aria-label="Bóveda de la credencial"
+                disabled={Boolean(initialData) || isSaving}
                 value={targetVaultId}
                 onChange={(e) => setTargetVaultId(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 text-xs focus:outline-none focus:border-indigo-500 shadow-sm"
               >
-                {vaults.map((v) => (
+                {vaults.filter(v => canWriteCredentials(v) || (Boolean(initialData) && v.id === targetVaultId)).map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.type === 'SHARED' ? '[Familiar] ' : '[Privada] '} {v.name}
                   </option>
                 ))}
               </select>
+              {initialData && <p className="text-xs text-slate-400 mt-1">La credencial conserva su bóveda original.</p>}
               <span className="text-[11px] text-slate-400 block mt-1">
                 {selectedVault?.type === 'SHARED'
-                  ? 'Esta contraseña será visible para los miembros de tu familia.'
+                  ? 'Solo los miembros autorizados de esta bóveda pueden verla. Las invitaciones están pendientes.'
                   : 'Esta contraseña es privada y solo tú la podrás ver.'}
               </span>
             </div>
@@ -173,7 +184,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
               </div>
               <input
                 type="text"
-                placeholder="Ej. Disney+, Netflix, Spotify, Gmail, Santander..."
+                aria-label="Servicio" placeholder="Ej. Gmail"
                 value={platform}
                 onChange={(e) => setPlatform(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs shadow-sm"
@@ -189,7 +200,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
               </label>
               <input
                 type="text"
-                placeholder="usuario@ejemplo.com o nombre_usuario"
+                aria-label="Usuario o correo" placeholder="usuario@ejemplo.com"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs shadow-sm"
@@ -214,7 +225,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Contraseña..."
+                  aria-label="Contraseña" autoComplete="new-password" placeholder="Contraseña"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs pr-10 shadow-sm"
@@ -223,7 +234,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} className="absolute right-1 top-0.5 flex items-center justify-center text-slate-400 hover:text-slate-200"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -245,14 +256,14 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
               )}
             </div>
 
-            {/* Website URL */}
+            <details className="rounded-xl border border-slate-800 p-3"><summary className="min-h-11 cursor-pointer text-sm text-slate-300">Sitio web y notas (opcional)</summary><div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5 text-slate-400" /> Sitio Web (Opcional)
               </label>
               <input
                 type="text"
-                placeholder="https://ejemplo.com"
+                aria-label="Sitio web" placeholder="https://ejemplo.com"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs shadow-sm"
@@ -265,7 +276,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
                 <FileText className="w-3.5 h-3.5 text-slate-400" /> Notas o PIN adicional
               </label>
               <textarea
-                placeholder="PIN del perfil, preguntas de seguridad, etc."
+                aria-label="Notas" placeholder="PIN del perfil, preguntas de seguridad, etc."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
@@ -273,7 +284,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
               />
             </div>
 
-            {/* Action buttons */}
+            </div></details>{/* Action buttons */}
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-800/80">
               <button
                 type="button"
@@ -284,7 +295,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={isSaving}
+                disabled={isSaving || !canWriteCredentials(selectedVault)}
                 className="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-semibold shadow-lg shadow-indigo-950/50 transition disabled:opacity-50 flex items-center gap-1.5"
               >
                 {isSaving ? (
