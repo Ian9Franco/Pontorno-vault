@@ -3,7 +3,8 @@
 import { vaultErrorMessage } from '@/lib/security/vault-access';
 import React, { useState } from 'react';
 import { useVault } from '@/context/VaultContext';
-import { KeyRound, Shield, Clock, Database, Check, X, RefreshCw, User, Edit3, Lock } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
+import { KeyRound, Shield, Clock, Check, X, RefreshCw, User, Link2, ShieldCheck } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface SettingsModalProps {
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const {
+    user,
     userProfile,
     updateDisplayName,
     autoLockMinutes,
@@ -24,32 +26,51 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
-
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [isRotating, setIsRotating] = useState(false);
   const [rotateSuccess, setRotateSuccess] = useState(false);
   const [rotateError, setRotateError] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
+
+  const providers = Array.isArray(user?.app_metadata?.providers) ? user?.app_metadata?.providers as string[] : [];
+  const googleLinked = providers.includes('google') || Boolean(user?.identities?.some(identity => identity.provider === 'google'));
+  const legacySyncedAccount = isSupabaseConnected && !googleLinked;
 
   if (!isOpen) return null;
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (displayName.trim()) {
-      if (isSavingProfile) return;
-      setProfileError(null);
-      setNameSaved(false);
-      setIsSavingProfile(true);
-      try {
-        await updateDisplayName(displayName.trim());
-        setNameSaved(true);
-        setTimeout(() => setNameSaved(false), 2500);
-      } catch (error) {
-        setProfileError(vaultErrorMessage(error));
-      } finally {
-        setIsSavingProfile(false);
-      }
+    if (!displayName.trim() || isSavingProfile) return;
+    setProfileError(null);
+    setNameSaved(false);
+    setIsSavingProfile(true);
+    try {
+      await updateDisplayName(displayName.trim());
+      setNameSaved(true);
+      setTimeout(() => setNameSaved(false), 2500);
+    } catch (error) {
+      setProfileError(vaultErrorMessage(error));
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const linkGoogle = async () => {
+    if (!supabase || linking || googleLinked) return;
+    setLinkError(null);
+    setLinking(true);
+    try {
+      const { error } = await supabase.auth.linkIdentity({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/` },
+      });
+      if (error) throw error;
+    } catch (error) {
+      setLinkError(vaultErrorMessage(error));
+      setLinking(false);
     }
   };
 
@@ -58,13 +79,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     setRotateError(null);
     setRotateSuccess(false);
 
-    if (newPassword.length < 8) {
-      setRotateError('La nueva contraseña maestra debe tener al menos 8 caracteres.');
+    if (legacySyncedAccount) {
+      setRotateError('Vincula Google antes de cambiar el secreto de bóveda. Así evitamos desincronizar la contraseña de Auth y la clave criptográfica heredada.');
       return;
     }
-
+    if (newPassword.length < 12) {
+      setRotateError('El nuevo secreto de bóveda debe tener al menos 12 caracteres.');
+      return;
+    }
     if (newPassword !== confirmNewPassword) {
-      setRotateError('Las contraseñas no coinciden.');
+      setRotateError('Los secretos no coinciden.');
       return;
     }
 
@@ -86,145 +110,54 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     <div className="vault-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
       <div className="w-full max-w-lg bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-7 animate-slide-up max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-800/80">
-          <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-indigo-400" /> Configuración de Cuenta
-          </h3>
-          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-white">
-            <X className="w-5 h-5" />
-          </button>
+          <h3 className="text-base font-bold text-slate-100 flex items-center gap-2"><Shield className="w-5 h-5 text-indigo-400" /> Configuración de seguridad</h3>
+          <button onClick={onClose} aria-label="Cerrar configuración" className="p-1 rounded-lg text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="space-y-6">
-          {/* Edit User Profile Name */}
-          <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5">
-              <User className="w-4 h-4 text-indigo-400" /> Tu Nombre o Alias Familiar
-            </h4>
-            <p className="text-xs text-slate-400 mb-3">
-              Este nombre identifica quién creó o editó cada contraseña en la bóveda familiar.
-            </p>
+          {isSupabaseConnected && <section>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5"><Link2 className="w-4 h-4 text-emerald-400" /> Identidad de acceso</h4>
+            {googleLinked ? (
+              <div className="mt-3 flex gap-2 rounded-xl border border-emerald-900/50 bg-emerald-950/20 p-3 text-xs text-emerald-100"><ShieldCheck className="h-4 w-4 shrink-0" /><span>Google está vinculado. La identidad de acceso y el secreto criptográfico de la bóveda ya son credenciales separadas.</span></div>
+            ) : (
+              <div className="mt-3 rounded-xl border border-amber-900/50 bg-amber-950/20 p-3 text-xs leading-relaxed text-amber-100">
+                <p>Esta cuenta todavía usa el flujo legado. Vincula Google conservando el mismo usuario de Supabase para mantener tus bóvedas y políticas RLS.</p>
+                <button type="button" disabled={linking} onClick={linkGoogle} className="mt-3 min-h-11 rounded-xl bg-slate-800 px-4 font-semibold text-slate-100 hover:bg-slate-700 disabled:opacity-50">{linking ? 'Redirigiendo…' : 'Vincular Google'}</button>
+                {linkError && <p role="alert" className="mt-2 text-rose-300">{linkError}</p>}
+                <p className="mt-2 text-slate-400">Requiere Google habilitado y Manual Identity Linking activado en Supabase Auth.</p>
+              </div>
+            )}
+          </section>}
 
+          <section className="pt-4 border-t border-slate-800/80">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5"><User className="w-4 h-4 text-indigo-400" /> Nombre visible</h4>
             {profileError && <p role="alert" className="mb-3 text-xs text-rose-300">{profileError}</p>}
-            {nameSaved && (
-              <div className="mb-3 p-2.5 rounded-xl bg-indigo-950/50 border border-indigo-800/40 text-indigo-300 text-xs flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                <span>Nombre actualizado correctamente.</span>
-              </div>
-            )}
-
+            {nameSaved && <div className="mb-3 p-2.5 rounded-xl bg-indigo-950/50 border border-indigo-800/40 text-indigo-300 text-xs flex items-center gap-2"><Check className="w-4 h-4" /> Nombre actualizado.</div>}
             <form onSubmit={handleSaveProfile} className="flex gap-2">
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Tu nombre o alias (ej. Ian, Papá, Mamá)..."
-                className="flex-1 px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500 shadow-sm"
-                required
-              />
-              <button
-                type="submit"
-                disabled={isSavingProfile}
-                className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>{isSavingProfile ? 'Guardando...' : 'Guardar'}</span>
-              </button>
+              <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Tu nombre o alias" className="vault-input flex-1" required />
+              <button type="submit" disabled={isSavingProfile} className="rounded-xl bg-indigo-600 px-4 text-xs font-semibold text-white disabled:opacity-50">{isSavingProfile ? 'Guardando…' : 'Guardar'}</button>
             </form>
-          </div>
+          </section>
 
-          {/* Auto-Lock Settings */}
-          <div className="pt-4 border-t border-slate-800/80">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-sky-400" /> Bloqueo Automático por Inactividad
-            </h4>
-            <p className="text-xs text-slate-400 mb-3">
-              Oculta tus contraseñas automáticamente si dejas la app inactiva.
-            </p>
-            <div className="grid grid-cols-4 gap-2">
-              {[1, 5, 15, 30].map((mins) => (
-                <button
-                  key={mins}
-                  type="button"
-                  onClick={() => setAutoLockMinutes(mins)}
-                  className={`py-2 text-xs font-semibold rounded-xl border transition ${
-                    autoLockMinutes === mins
-                      ? 'bg-indigo-950/60 border-indigo-500 text-indigo-200 font-bold shadow-sm'
-                      : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {mins} min
-                </button>
-              ))}
-            </div>
-          </div>
+          <section className="pt-4 border-t border-slate-800/80">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5"><Clock className="w-4 h-4 text-sky-400" /> Bloqueo automático</h4>
+            <p className="text-xs text-slate-400 mb-3">Elimina claves y plaintext del estado de la aplicación después de inactividad.</p>
+            <div className="grid grid-cols-4 gap-2">{[1, 5, 15, 30].map((mins) => <button key={mins} type="button" onClick={() => setAutoLockMinutes(mins)} className={`py-2 text-xs font-semibold rounded-xl border ${autoLockMinutes === mins ? 'bg-indigo-950/60 border-indigo-500 text-indigo-200' : 'bg-slate-950/80 border-slate-800 text-slate-400'}`}>{mins} min</button>)}</div>
+          </section>
 
-          {/* Master Password Change */}
-          <div className="pt-4 border-t border-slate-800/80">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5">
-              <KeyRound className="w-4 h-4 text-indigo-400" /> Cambiar Contraseña Maestra
-            </h4>
-            <p className="text-xs text-slate-400 mb-3">
-              Actualiza tu clave principal sin afectar las contraseñas guardadas en tus bóvedas.
-            </p>
-
-            {rotateSuccess && (
-              <div className="mb-3 p-3 rounded-xl bg-indigo-950/50 border border-indigo-800/40 text-indigo-300 text-xs flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                <span>Contraseña maestra cambiada con éxito.</span>
-              </div>
-            )}
-
-            {rotateError && (
-              <div className="mb-3 p-3 rounded-xl bg-rose-950/50 border border-rose-800/40 text-rose-300 text-xs">
-                {rotateError}
-              </div>
-            )}
-
+          <section className="pt-4 border-t border-slate-800/80">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5"><KeyRound className="w-4 h-4 text-indigo-400" /> Cambiar secreto de bóveda</h4>
+            <p className="text-xs text-slate-400 mb-3">Esto vuelve a envolver tu UserMasterKey. No cambia la contraseña de Google ni requiere recifrar las credenciales.</p>
+            {legacySyncedAccount && <p className="mb-3 rounded-xl border border-amber-900/40 bg-amber-950/10 p-3 text-xs text-amber-100">Bloqueado hasta vincular Google: cambiarlo antes podría dejar el acceso legado y el cifrado usando secretos diferentes.</p>}
+            {rotateSuccess && <div className="mb-3 p-3 rounded-xl bg-emerald-950/30 border border-emerald-800/40 text-emerald-200 text-xs flex items-center gap-2"><Check className="w-4 h-4" /> Secreto de bóveda actualizado.</div>}
+            {rotateError && <div role="alert" className="mb-3 p-3 rounded-xl bg-rose-950/50 border border-rose-800/40 text-rose-300 text-xs">{rotateError}</div>}
             <form onSubmit={handleRotate} className="space-y-3">
-              <input
-                type="password"
-                placeholder="Contraseña maestra actual..."
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500 shadow-sm"
-                required
-              />
-              <input
-                type="password"
-                placeholder="Nueva contraseña maestra..."
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500 shadow-sm"
-                required
-              />
-              <input
-                type="password"
-                placeholder="Confirmar nueva contraseña..."
-                value={confirmNewPassword}
-                onChange={(e) => setConfirmNewPassword(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500 shadow-sm"
-                required
-              />
-
-              <button
-                type="submit"
-                disabled={isRotating || !oldPassword || !newPassword}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm"
-              >
-                {isRotating ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Actualizando...</span>
-                  </>
-                ) : (
-                  <>
-                    <KeyRound className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Actualizar Contraseña Maestra</span>
-                  </>
-                )}
-              </button>
+              <input type="password" autoComplete="current-password" placeholder="Secreto de bóveda actual" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} className="vault-input" required />
+              <input type="password" autoComplete="new-password" placeholder="Nuevo secreto de bóveda" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="vault-input" required minLength={12} />
+              <input type="password" autoComplete="new-password" placeholder="Repetir nuevo secreto" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} className="vault-input" required />
+              <button type="submit" disabled={isRotating || legacySyncedAccount || !oldPassword || !newPassword} className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-200 text-xs font-semibold border border-slate-700 disabled:opacity-50 flex items-center justify-center gap-1.5">{isRotating ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Actualizando…</> : <><KeyRound className="w-3.5 h-3.5 text-indigo-400" /> Actualizar secreto</>}</button>
             </form>
-          </div>
+          </section>
         </div>
       </div>
     </div>
