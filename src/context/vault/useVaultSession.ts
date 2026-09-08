@@ -2,9 +2,27 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { type UserCryptoSetup } from '@/lib/crypto';
+import {
+  TEST_MASTER_DISPLAY_NAME,
+  TEST_MASTER_EMAIL,
+  TEST_MASTER_USER_ID,
+  isTestMasterSession,
+} from '@/lib/constants/test-master';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client';
 import { type User } from '@supabase/supabase-js';
 import { DEMO_STORAGE_KEY, type StoredEncryptedDB, type VaultEntity, type VaultItem, type UserProfile } from './types';
+
+function createTestMasterUser(): User {
+  return {
+    id: TEST_MASTER_USER_ID,
+    aud: 'authenticated',
+    role: 'authenticated',
+    email: TEST_MASTER_EMAIL,
+    app_metadata: { provider: 'test-master', providers: ['test-master'] },
+    user_metadata: { display_name: TEST_MASTER_DISPLAY_NAME, test_master: true },
+    created_at: new Date(0).toISOString(),
+  } as User;
+}
 
 /** Owns session state, subscriptions and inactivity locking. Keys stay in memory. */
 export function useVaultSession() {
@@ -111,7 +129,10 @@ export function useVaultSession() {
   useEffect(() => {
     const init = async () => {
       try {
-        if (isSupabaseConfigured && supabase) {
+        if (isTestMasterSession()) {
+          setUser(createTestMasterUser());
+          await checkUserCryptoStatus(null);
+        } else if (isSupabaseConfigured && supabase) {
           const { data: { session } } = await supabase.auth.getSession();
           const currentUser = session?.user || null;
           setUser(currentUser);
@@ -130,7 +151,7 @@ export function useVaultSession() {
     };
     init();
 
-    if (isSupabaseConfigured && supabase) {
+    if (!isTestMasterSession() && isSupabaseConfigured && supabase) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         const currentUser = session?.user || null;
         setUser(currentUser);

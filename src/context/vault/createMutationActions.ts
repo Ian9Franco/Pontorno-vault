@@ -1,6 +1,7 @@
 import { canWriteCredentials, canManageVault, assertMutationSucceeded } from '@/lib/security/vault-access';
 import { createOwnedVault } from '@/lib/services/vault-persistence';
 import { type CredentialPayload, createVaultKey, encryptCredential, rotateMasterPassword, wrapVaultKeyForUser } from '@/lib/crypto';
+import { isTestMasterSession } from '@/lib/constants/test-master';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client';
 import { DEMO_STORAGE_KEY, type StoredEncryptedDB, type VaultEntity, type VaultItem, type CreatorInfo } from './types';
 import { type VaultSession } from './useVaultSession';
@@ -8,6 +9,7 @@ import { type VaultSession } from './useVaultSession';
 /** Permission-checked writes update the view after persistence succeeds. */
 export function createMutationActions(session: VaultSession) {
   const { user, userProfile, setUserProfile, isUnlocked, activeVaultId, setActiveVaultId, vaults, setVaults, credentials, setCredentials, userMasterKeyRef, vaultKeysRef, userCryptoDataRef, resetActivity } = session;
+
   // Save (Add or Update) Credential
   const saveCredential = async (payload: CredentialPayload, credentialId?: string, targetVaultId?: string) => {
     const existing = credentialId ? credentials.find(c => c.id === credentialId) : null;
@@ -23,13 +25,13 @@ export function createMutationActions(session: VaultSession) {
     const updatedAt = new Date().toISOString();
     const currentUserName = userProfile?.displayName || 'Tú';
 
-    let creatorInfo: CreatorInfo = {
+    const creatorInfo: CreatorInfo = {
       id: user?.id || 'local-user',
       name: `${currentUserName} (Tú)`,
       isCurrentUser: true,
     };
 
-    if (isSupabaseConfigured && supabase && user) {
+    if (isSupabaseConfigured && supabase && user && !isTestMasterSession()) {
       if (credentialId) {
         const result = await supabase
           .from('credentials')
@@ -74,15 +76,11 @@ export function createMutationActions(session: VaultSession) {
         createdAt: existingIndex >= 0 ? db.credentials[existingIndex].createdAt : updatedAt,
       };
 
-      if (existingIndex >= 0) {
-        db.credentials[existingIndex] = newEncryptedRecord;
-      } else {
-        db.credentials.push(newEncryptedRecord);
-      }
+      if (existingIndex >= 0) db.credentials[existingIndex] = newEncryptedRecord;
+      else db.credentials.push(newEncryptedRecord);
       localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(db));
     }
 
-    // Update in-memory state
     setCredentials((prev) => {
       const idx = prev.findIndex((c) => c.id === credentialId);
       const item: VaultItem = {
@@ -106,7 +104,7 @@ export function createMutationActions(session: VaultSession) {
   const removeCredential = async (credentialId: string) => {
     const item = credentials.find(c => c.id === credentialId);
     if (!isUnlocked || !item || !canWriteCredentials(vaults.find(v => v.id === item.vaultId))) throw new Error('No tienes permiso para eliminar esta credencial.');
-    if (isSupabaseConfigured && supabase) {
+    if (isSupabaseConfigured && supabase && !isTestMasterSession()) {
       const result = await supabase.from('credentials').delete().eq('id', credentialId).select('id').maybeSingle();
       assertMutationSucceeded(result);
     } else {
@@ -124,7 +122,7 @@ export function createMutationActions(session: VaultSession) {
   // Create Vault (Personal or Shared)
   const createVault = async (name: string, type: 'PERSONAL' | 'SHARED') => {
     if (!userMasterKeyRef.current) throw new Error('Usuario no desbloqueado');
-    if (isSupabaseConfigured && supabase && user) {
+    if (isSupabaseConfigured && supabase && user && !isTestMasterSession()) {
       const created = await createOwnedVault(supabase, userMasterKeyRef.current, name, type);
       vaultKeysRef.current.set(created.id, created.key);
       const newEntity: VaultEntity = {
@@ -144,7 +142,7 @@ export function createMutationActions(session: VaultSession) {
       db.vaults.push({ id: newVaultId, name, type });
       db.vaultMembers.push({
         vaultId: newVaultId,
-        userId: 'current-user',
+        userId: user?.id || 'current-user',
         encryptedVaultKey: wrappedVaultKey.ciphertext,
         nonce: wrappedVaultKey.nonce,
         permissions: 'ADMIN',
@@ -165,8 +163,7 @@ export function createMutationActions(session: VaultSession) {
 
     const { updatedSetup, userMasterKey } = await rotateMasterPassword(oldPass, newPass, cryptoRecord);
 
-
-    if (isSupabaseConfigured && supabase && user) {
+    if (isSupabaseConfigured && supabase && user && !isTestMasterSession()) {
       const result = await supabase
         .from('user_crypto')
         .update({
@@ -194,7 +191,7 @@ export function createMutationActions(session: VaultSession) {
   // Update Vault (Rename / Change Type)
   const updateVault = async (vaultId: string, name: string, type: 'PERSONAL' | 'SHARED') => {
     if (!isUnlocked || !canManageVault(vaults.find(v => v.id === vaultId))) throw new Error('Solo el propietario puede administrar esta bóveda.');
-    if (isSupabaseConfigured && supabase) {
+    if (isSupabaseConfigured && supabase && !isTestMasterSession()) {
       const result = await supabase
         .from('vaults')
         .update({ name, type, updated_at: new Date().toISOString() })
@@ -213,16 +210,14 @@ export function createMutationActions(session: VaultSession) {
       }
     }
 
-    setVaults((prev) =>
-      prev.map((v) => (v.id === vaultId ? { ...v, name, type } : v))
-    );
+    setVaults((prev) => prev.map((v) => (v.id === vaultId ? { ...v, name, type } : v)));
     resetActivity();
   };
 
   // Remove Vault
   const removeVault = async (vaultId: string) => {
     if (!isUnlocked || !canManageVault(vaults.find(v => v.id === vaultId))) throw new Error('Solo el propietario puede eliminar esta bóveda.');
-    if (isSupabaseConfigured && supabase) {
+    if (isSupabaseConfigured && supabase && !isTestMasterSession()) {
       const result = await supabase.from('vaults').delete().eq('id', vaultId).select('id').maybeSingle();
       assertMutationSucceeded(result);
     } else {
@@ -240,9 +235,7 @@ export function createMutationActions(session: VaultSession) {
     setCredentials((prev) => prev.filter((c) => c.vaultId !== vaultId));
     setVaults((prev) => {
       const remaining = prev.filter((v) => v.id !== vaultId);
-      if (activeVaultId === vaultId && remaining.length > 0) {
-        setActiveVaultId(remaining[0].id);
-      }
+      if (activeVaultId === vaultId && remaining.length > 0) setActiveVaultId(remaining[0].id);
       return remaining;
     });
     resetActivity();
@@ -250,12 +243,21 @@ export function createMutationActions(session: VaultSession) {
 
   const updateDisplayName = async (newName: string) => {
     if (!newName.trim()) return;
-    if (isSupabaseConfigured && supabase && user) {
+    if (isSupabaseConfigured && supabase && user && !isTestMasterSession()) {
       const result = await supabase.from('profiles').upsert({
         id: user.id,
         display_name: newName.trim(),
       }).select('id').maybeSingle();
       assertMutationSucceeded(result);
+    } else {
+      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+      if (raw) {
+        const db: StoredEncryptedDB = JSON.parse(raw);
+        if (db.profile) {
+          db.profile.displayName = newName.trim();
+          localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(db));
+        }
+      }
     }
     setUserProfile((prev) => prev ? { ...prev, displayName: newName.trim() } : null);
   };
