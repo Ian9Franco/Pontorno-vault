@@ -1,5 +1,6 @@
 import type { User } from '@supabase/supabase-js';
 import type { CredentialPayload, UserCryptoSetup } from '@/lib/crypto';
+import type { OtpAlias, OtpSnapshot } from '@/lib/otp/types';
 /** Public models and encrypted local storage schema. */
 export interface CreatorInfo {
   id: string;
@@ -39,6 +40,12 @@ export interface UnifiedAuthParams {
 }
 
 export interface VaultContextType {
+  loadOtpInbox: (vaultId: string) => Promise<OtpSnapshot>;
+  configureOtp: (credentialId: string, serviceKey: string) => Promise<OtpAlias>;
+  setOtpAliasStatus: (vaultId: string, aliasId: string, status: 'active' | 'paused') => Promise<void>;
+  dismissOtp: (vaultId: string, id: string) => Promise<void>;
+  listOtpMembers: (vaultId: string) => Promise<Array<{user_id:string;can_read:boolean}>>;
+  setOtpAccess: (vaultId: string,userId: string,allow: boolean) => Promise<void>;
   user: User | null;
   userProfile: UserProfile | null;
   isUnlocked: boolean;
@@ -72,7 +79,7 @@ export interface StoredEncryptedDB {
   userCrypto: UserCryptoSetup | null;
   profile?: { id: string; email: string; displayName: string };
   vaults: Array<{ id: string; name: string; type: 'PERSONAL' | 'SHARED' }>;
-  vaultMembers: Array<{ vaultId: string; userId: string; encryptedVaultKey: string; nonce: string; permissions: 'READ' | 'WRITE' | 'ADMIN' }>;
+  vaultMembers: Array<{ vaultId: string; userId: string; encryptedVaultKey: string; nonce: string; cryptoVersion?: number; permissions: 'READ' | 'WRITE' | 'ADMIN' }>;
   credentials: Array<{
     id: string;
     vaultId: string;

@@ -60,10 +60,10 @@ export const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
 
   return (
     <div className="vault-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
-      <div className="w-full max-w-md bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-7 animate-slide-up">
+      <div className="w-full max-w-md bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-7 animate-slide-up unified-modal">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
+            <div className="p-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-[#9aead6]">
               <KeyRound className="w-5 h-5" />
             </div>
             <div>
@@ -99,7 +99,7 @@ export const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
         {/* Output Display */}
         <div className="p-4 bg-slate-950/90 border border-slate-800/80 rounded-2xl mb-4 shadow-sm">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-mono text-sm sm:text-base text-indigo-300 break-all select-all font-semibold">
+            <span className="font-mono text-sm sm:text-base text-[#baf6e7] break-all select-all font-semibold">
               {generatedPassword}
             </span>
             <div className="flex items-center gap-1 flex-shrink-0">
@@ -112,7 +112,7 @@ export const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
               </button>
               <button
                 onClick={handleCopy}
-                className="p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-sm"
+                className="technical-primary"
                 title="Copiar al portapapeles"
               >
                 {copied ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4" />}
@@ -142,7 +142,7 @@ export const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
               <div>
                 <div className="flex justify-between mb-1">
                   <span>Longitud:</span>
-                  <span className="font-mono font-bold text-indigo-400">{length} caracteres</span>
+                  <span className="font-mono font-bold text-[#9aead6]">{length} caracteres</span>
                 </div>
                 <input
                   type="range"
@@ -197,7 +197,7 @@ export const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
             <div>
               <div className="flex justify-between mb-1">
                 <span>Cantidad de palabras:</span>
-                <span className="font-mono font-bold text-indigo-400">{wordCount} palabras</span>
+                <span className="font-mono font-bold text-[#9aead6]">{wordCount} palabras</span>
               </div>
               <input
                 type="range"
@@ -225,7 +225,7 @@ export const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
                 onSelectPassword(generatedPassword);
                 onClose();
               }}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-semibold shadow-md shadow-indigo-950/50 transition flex items-center gap-1.5"
+              className="technical-primary"
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Usar esta Contraseña</span>

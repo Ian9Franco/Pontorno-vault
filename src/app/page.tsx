@@ -12,6 +12,7 @@ import { SettingsModal } from '@/components/SettingsModal';
 import { CredentialPayload } from '@/lib/crypto';
 import { VaultLoading } from '@/components/vault/VaultLoading';
 import { AnimatePresence } from 'motion/react';
+import { useMinimumLoading } from '@/components/vault/useMinimumLoading';
 
 export default function Home() {
   const {
@@ -27,8 +28,9 @@ export default function Home() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<{ id: string; payload: CredentialPayload } | null>(null);
   const [initializing, setInitializing] = useState(true);
+  const showLoading = useMinimumLoading(isLoading);
 
-  useEffect(() => { if (!isLoading) setInitializing(false); }, [isLoading]);
+  useEffect(() => { if (!showLoading) setInitializing(false); }, [showLoading]);
 
   useEffect(() => {
     if (!isUnlocked) {
@@ -50,15 +52,15 @@ export default function Home() {
   };
 
   // Not logged in -> Show Unified Auth (Email, Display Name, Master Password)
-  const isLoggedOut = isSupabaseConnected ? !user : !isUnlocked;
+  const isLoggedOut = !user && (isSupabaseConnected || !isUnlocked);
 
   if (initializing) return <VaultLoading />;
 
   return (
     <main className="min-h-screen bg-[#090d16] flex flex-col">
       {/* Keep submitted forms mounted so a failed unlock retains its actionable error. */}
-      <AnimatePresence>{isLoading ? <VaultLoading key="vault-unlock" unlocking overlay /> : null}</AnimatePresence>
-      <div inert={isLoading} className="flex min-h-screen flex-col">
+      <AnimatePresence>{showLoading ? <VaultLoading key="vault-unlock" unlocking overlay /> : null}</AnimatePresence>
+      <div inert={showLoading} className="flex min-h-screen flex-col">
       <Navbar
         onOpenGenerator={() => setIsGeneratorModalOpen(true)}
         onOpenSettings={() => setIsSettingsModalOpen(true)}

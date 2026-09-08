@@ -1,0 +1,23 @@
+.otp-panel { margin-top:28px; padding:22px; border:1px solid #30454a; background:linear-gradient(135deg,#132627,#0c151d); color:#dce9ed; }
+.otp-header,.otp-title,.otp-actions,.otp-code-heading,.otp-code-value,.otp-member { display:flex; align-items:center; gap:10px; }
+.otp-header,.otp-code-heading,.otp-member { justify-content:space-between; }
+.otp-title { color:#9aead6; font-size:17px; font-weight:600; }
+.otp-panel p { font-size:12px; line-height:1.7; color:#a7bdc3; }
+.otp-header p { margin-top:6px; }
+.otp-actions { flex-wrap:wrap; }
+.otp-notice { margin:16px 0; padding:12px; border:1px solid #746238; background:#39301755; }
+.otp-empty { padding:24px 0 10px; }
+.otp-code-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr)); gap:12px; margin-top:16px; }
+.otp-code { padding:16px; border:1px solid #39564f; background:#09161b; animation:panel-enter .25s ease-out; }
+.otp-code-heading strong { font-size:13px; }.otp-code-heading span { font:11px monospace; color:#9cb7b8; }
+.otp-code-value { margin:12px 0; }.otp-code-value > span { flex:1; font:600 26px monospace; letter-spacing:.12em; color:#b9ffee; }
+.otp-code[data-expired=true] .otp-code-value > span { font-size:16px; color:#a1adb2; letter-spacing:0; }
+.otp-connections,.otp-permissions { border-top:1px solid #30454a; margin-top:20px; padding-top:16px; }
+.otp-connections summary,.otp-permissions summary { cursor:pointer; color:#c8dfdb; font-size:13px; }
+.otp-permissions summary svg { display:inline; margin-right:8px; }.otp-member { margin-top:12px; font-size:12px; }
+.otp-connection { padding:16px 0; border-bottom:1px solid #263d40; }.otp-connection strong { font-size:13px; }.otp-connection .otp-actions { margin-top:12px; }
+.otp-address { display:block; max-width:100%; margin-top:8px; color:#9aead6; font:12px/1.8 monospace; overflow-wrap:anywhere; text-align:left; }
+.otp-steps { list-style:decimal; padding-left:20px; color:#b6cace; font-size:13px; line-height:1.8; }.otp-steps li { margin-bottom:8px; }
+.otp-consent { display:flex!important; align-items:flex-start; gap:10px; line-height:1.6; }.otp-consent input { margin-top:4px; accent-color:#9aead6; }
+@media(max-width:639px) { .otp-panel{padding:16px;}.otp-header{align-items:flex-start;flex-direction:column;}.otp-header .otp-actions{width:100%;}.otp-header .technical-primary{flex:1;} }
+@media(prefers-reduced-motion:reduce) { .otp-code{animation:none;} }

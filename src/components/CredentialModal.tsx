@@ -114,7 +114,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
   return (
     <>
       <div className="vault-dialog-backdrop fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
-        <div className="w-full max-w-lg bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-7 animate-slide-up max-h-[92vh] overflow-y-auto">
+        <div className="w-full max-w-lg bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-7 animate-slide-up max-h-[92vh] overflow-y-auto unified-modal">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
               <PlatformIcon platformName={platform} url={url} size="md" />
@@ -141,9 +141,9 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center gap-1.5">
                 {selectedVault?.type === 'SHARED' ? (
-                  <Users className="w-3.5 h-3.5 text-sky-400" />
+                  <Users className="w-3.5 h-3.5 text-[#9aead6]" />
                 ) : (
-                  <FolderLock className="w-3.5 h-3.5 text-indigo-400" />
+                  <FolderLock className="w-3.5 h-3.5 text-[#9aead6]" />
                 )}
                 <span>Guardar en la Bóveda *</span>
               </label>
@@ -152,7 +152,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
                 disabled={Boolean(initialData) || isSaving}
                 value={targetVaultId}
                 onChange={(e) => setTargetVaultId(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 text-xs focus:outline-none focus:border-indigo-500 shadow-sm"
+                className="technical-input  "
               >
                 {vaults.filter(v => canWriteCredentials(v) || (Boolean(initialData) && v.id === targetVaultId)).map((v) => (
                   <option key={v.id} value={v.id}>
@@ -172,12 +172,12 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-indigo-400" /> Plataforma o Servicio *
+                  <Globe className="w-3.5 h-3.5 text-[#9aead6]" /> Plataforma o Servicio *
                 </label>
                 <button
                   type="button"
                   onClick={() => setIsPlatformModalOpen(true)}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition font-medium"
+                  className="text-xs text-[#9aead6] hover:text-[#baf6e7] flex items-center gap-1 transition font-medium"
                 >
                   <LayoutGrid className="w-3 h-3" /> Elegir de catálogo
                 </button>
@@ -187,7 +187,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
                 aria-label="Servicio" placeholder="Ej. Gmail"
                 value={platform}
                 onChange={(e) => setPlatform(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs shadow-sm"
+                className="technical-input  "
                 required
                 autoFocus
               />
@@ -196,14 +196,14 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
             {/* Username / Email */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-indigo-400" /> Usuario o Correo *
+                <User className="w-3.5 h-3.5 text-[#9aead6]" /> Usuario o Correo *
               </label>
               <input
                 type="text"
                 aria-label="Usuario o correo" placeholder="usuario@ejemplo.com"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs shadow-sm"
+                className="technical-input  "
                 required
               />
             </div>
@@ -212,12 +212,12 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-indigo-400" /> Contraseña *
+                  <Lock className="w-3.5 h-3.5 text-[#9aead6]" /> Contraseña *
                 </label>
                 <button
                   type="button"
                   onClick={handleGenerate}
-                  className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1 transition font-medium"
+                  className="text-xs text-[#9aead6] hover:text-sky-300 flex items-center gap-1 transition font-medium"
                 >
                   <Sparkles className="w-3 h-3" /> Generar segura
                 </button>
@@ -228,7 +228,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
                   aria-label="Contraseña" autoComplete="new-password" placeholder="Contraseña"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs pr-10 shadow-sm"
+                  className="technical-input  auth-input-with-action"
                   required
                 />
                 <button
@@ -266,7 +266,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
                 aria-label="Sitio web" placeholder="https://ejemplo.com"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs shadow-sm"
+                className="technical-input  "
               />
             </div>
 
@@ -280,7 +280,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
-                className="w-full px-3.5 py-2 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs resize-none shadow-sm"
+                className="technical-input  "
               />
             </div>
 
@@ -296,7 +296,7 @@ export const CredentialModal: React.FC<CredentialModalProps> = ({
               <button
                 type="submit"
                 disabled={isSaving || !canWriteCredentials(selectedVault)}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-semibold shadow-lg shadow-indigo-950/50 transition disabled:opacity-50 flex items-center gap-1.5"
+                className="technical-primary"
               >
                 {isSaving ? (
                   <>

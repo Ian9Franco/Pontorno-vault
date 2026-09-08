@@ -2,6 +2,13 @@
 
 ## Dirección visual
 
+Los logos del catálogo se incluyen como trazados SVG locales en
+`platform-marks.ts` (Simple Icons 11 y marcas históricas de la versión 5, CC0).
+No se consultan servidores de favicons al abrir credenciales. Las marcas sin
+trazado disponible y los servicios personalizados conservan iniciales.
+`modal-surfaces.css` comparte el acabado técnico del catálogo, credenciales,
+generador, configuración, guía de correo y menú de cuenta.
+
 La biblioteca toma la geometría de `public/ui1.jpg`, `ui2.jpg` y `ui3.jpg`:
 bordes finos, marcas de esquina, paneles oscuros y acentos menta. No reutiliza
 textos de las referencias. Los adornos son decorativos y no representan análisis
@@ -36,13 +43,19 @@ restaurar el foco al cerrar y responder a Escape. Mientras una escritura está e
 curso, cerrar y enviar de nuevo quedan deshabilitados.
 
 `VaultLoading` y `VaultSkeleton` representan inicialización y desbloqueo reales,
-sin esperas decorativas ni porcentajes ficticios. La página mantiene montado el
+con un mínimo visual de 2 segundos por pedido de producto y sin porcentajes ficticios.
+`useMinimumLoading` mantiene el preload hasta cumplir el mínimo y terminar la operación;
+el temporizador no retrasa las operaciones ni el bloqueo de seguridad. La página mantiene montado el
 formulario durante el desbloqueo y lo vuelve inerte bajo el preload: si falla,
 conserva el mensaje de error. `app/loading.tsx` reutiliza la presentación para la ruta.
 
 `VaultObject` forma una bóveda 3D mediante seis planos CSS, perspectiva, puerta,
 bisagras y sombra. Es decorativa y no anuncia que la sesión esté bloqueada.
-El preload anima suavemente su orientación. `motion.css` contiene esta geometría,
+La orientación sigue el puntero en toda la pantalla mediante resortes, incluidos clics
+y contactos táctiles. Al terminar un toque, cancelar el gesto o salir de la ventana,
+recupera su orientación de reposo. Los listeners son pasivos y no impiden el scroll.
+Un plano exterior flota y la sombra respira sin competir con la rotación interactiva.
+`motion.css` contiene esta geometría,
 modales, esqueletos y luces perimetrales: estas usan un gradiente enmascarado para
 conservar el contorno y no interceptan pulsaciones. Solo la bóveda activa y las
 tarjetas bajo foco o puntero animan sus bordes. Todas las animaciones respetan
@@ -53,6 +66,14 @@ La grilla muestra tres columnas en escritorio, dos en tabletas y móviles desde
 360 px, y una columna compacta en pantallas menores. Cada página contiene como
 máximo 12 servicios. Buscar reinicia la página; eliminar el último registro de una
 página ajusta la página visible. Los datos se filtran antes de paginar.
+
+Verificación del movimiento y preload (2026-09-07): 61 tests, TypeScript y build
+correctos; navegador local sin errores de consola. Al recargar, el preload estuvo
+visible y desapareció unos 2169 ms después del retorno de la navegación. Un clic
+fuera del objeto cambió su rotación; flotación activa y vista de 390 × 844 sin
+desbordamiento horizontal. El soporte táctil usa Pointer Events; queda pendiente
+validarlo en un dispositivo físico, al igual que el ajuste de movimiento reducido
+del sistema (revisado en código).
 
 ## Estado sensible y permisos
 

@@ -13,10 +13,11 @@ interface Props {
   canWrite: boolean;
   onEdit: (item: VaultItem) => void;
   onRemove: (id: string) => Promise<void>;
+  onReceiveCode?: (id: string) => void;
 }
 
 /** Secret visibility and copy feedback belong to the card, and disappear on unmount. */
-export function CredentialCard({ item, canWrite, onEdit, onRemove }: Props) {
+export function CredentialCard({ item, canWrite, onEdit, onRemove, onReceiveCode }: Props) {
   const reduceMotion = useReducedMotion();
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState<'user' | 'password' | null>(null);
@@ -61,6 +62,7 @@ export function CredentialCard({ item, canWrite, onEdit, onRemove }: Props) {
       </button>
     </div>
     <div className="credential-actions">
+      {onReceiveCode && <button className="card-detail-button" onClick={()=>onReceiveCode(item.id)}>Recibir códigos</button>}
       <button onClick={() => copy('password')} title="Copiar contraseña" className="credential-copy">
         {copied === 'password' ? <Check size={16} /> : <Copy size={16} />}
         {copied === 'password' ? 'Copiada' : 'Copiar contraseña'}

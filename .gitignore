@@ -51,3 +51,11 @@ Thumbs.db
 
 # Local deployment review snapshots (account and membership metadata)
 /supabase/review-private/
+
+# Test, coverage and runtime caches
+/coverage/
+.vitest/
+*.log
+
+# Scratch and local scratchpads
+scratch/
