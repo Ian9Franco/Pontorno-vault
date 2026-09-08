@@ -1,4 +1,6 @@
 'use client';
+import { localVaultStorageKey, isTestMasterSession } from '@/lib/constants/test-master';
+
 
 import { useCallback } from 'react';
 import { loadOwnedVaults } from '@/lib/services/vault-persistence';
@@ -12,14 +14,16 @@ import { type VaultSession } from './useVaultSession';
 export function useVaultDecryption(session: VaultSession) {
   const { user, setIsUnlocked, setActiveVaultId, vaults, setVaults, credentials, setCredentials, vaultKeysRef, lock, resetActivity } = session;
   // Helper to decrypt all user vaults & credentials
-  const decryptVaultsAndCredentials = useCallback(async (userMasterKey: CryptoKey, currentUser: User | null) => {
+  const decryptVaultsAndCredentials = useCallback(async (userMasterKey: CryptoKey, currentUser: User | null, ticket: number) => {
+    const check = () => session.guard.assert(ticket);
+    check();
     const decryptedVaultEntities: VaultEntity[] = [];
     const newVaultKeys = new Map<string, CryptoKey>();
     const decryptedCredentials: VaultItem[] = [];
 
-    if (isSupabaseConfigured && supabase && currentUser) {
+    if (!isTestMasterSession() && isSupabaseConfigured && supabase && currentUser) {
       try {
-        const loaded = await loadOwnedVaults(supabase, userMasterKey, currentUser.id);
+        const loaded = await loadOwnedVaults(supabase, userMasterKey, currentUser.id, check);
         for (const vault of loaded) {
           newVaultKeys.set(vault.id, vault.key);
           decryptedVaultEntities.push({
@@ -27,7 +31,7 @@ export function useVaultDecryption(session: VaultSession) {
           });
         }
       } catch (error) {
-        lock();
+        if (session.guard.current(ticket)) lock();
         throw error;
       }
 
@@ -62,7 +66,7 @@ export function useVaultDecryption(session: VaultSession) {
                   nonce: cred.nonce,
                   cryptoVersion: cred.crypto_version,
                 },
-                vKey
+                vKey, { vaultId: cred.vault_id, credentialId: cred.id }
               );
               const creatorName = profileMap.get(cred.created_by) || 'Miembro Familiar';
               const isMe = cred.created_by === currentUser.id;
@@ -87,14 +91,15 @@ export function useVaultDecryption(session: VaultSession) {
       }
     } else {
       // Local fallback mode
-      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+      const raw = localStorage.getItem(localVaultStorageKey(DEMO_STORAGE_KEY));
       const db: StoredEncryptedDB = raw ? JSON.parse(raw) : { userCrypto: null, vaults: [], vaultMembers: [], credentials: [] };
 
       for (const vm of db.vaultMembers) {
         const v = db.vaults.find((vault) => vault.id === vm.vaultId);
         if (!v) continue;
         try {
-          const unwrappedVaultKey = await unwrapVaultKey(vm.encryptedVaultKey, vm.nonce, userMasterKey);
+          const unwrappedVaultKey = await unwrapVaultKey(vm.encryptedVaultKey, vm.nonce, userMasterKey,
+            { vaultId: vm.vaultId, userId: vm.userId, cryptoVersion: vm.cryptoVersion || 1 });
           newVaultKeys.set(vm.vaultId, unwrappedVaultKey);
           decryptedVaultEntities.push({
             id: v.id,
@@ -103,7 +108,7 @@ export function useVaultDecryption(session: VaultSession) {
             permissions: vm.permissions, isOwner: true,
           });
         } catch (e) {
-          console.error(e);
+          throw new Error('No se pudo abrir una clave de bóveda local. No se modificaron datos.');
         }
       }
 
@@ -117,7 +122,7 @@ export function useVaultDecryption(session: VaultSession) {
               nonce: cred.nonce,
               cryptoVersion: cred.cryptoVersion,
             },
-            vKey
+            vKey, { vaultId: cred.vaultId, credentialId: cred.id }
           );
           decryptedCredentials.push({
             id: cred.id,
@@ -128,7 +133,7 @@ export function useVaultDecryption(session: VaultSession) {
             createdBy: cred.createdBy ? { ...cred.createdBy, isCurrentUser: true } : { id: 'me', name: 'Tú', isCurrentUser: true },
           });
         } catch (e) {
-          console.error(e);
+          throw new Error('No se pudo descifrar una credencial local. No se modificaron datos.');
         }
       }
     }
@@ -136,6 +141,7 @@ export function useVaultDecryption(session: VaultSession) {
     // Sort vaults: Family (SHARED) first, then Personal (PERSONAL)
     decryptedVaultEntities.sort((a, b) => (a.type === 'SHARED' ? -1 : 1));
 
+    check();
     vaultKeysRef.current = newVaultKeys;
     setVaults(decryptedVaultEntities);
     if (decryptedVaultEntities.length > 0) {

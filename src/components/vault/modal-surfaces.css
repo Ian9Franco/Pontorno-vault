@@ -1,0 +1,27 @@
+/* Shared surface for the remaining forms; layout and security states stay local
+   to each component. No global recoloring of warnings or strength indicators. */
+.vault-dialog-backdrop > .unified-modal {
+  --line: #30434a;
+  --accent: #9aead6;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: radial-gradient(ellipse at top right, #9aead60b, transparent 65%), linear-gradient(140deg, #172528, #0d151c 70%);
+  box-shadow: inset 0 1px #b9fff01a, 0 28px 100px #0009;
+  color: #e6f0f3;
+}
+.unified-modal h3 { font-size: 20px; letter-spacing: -.025em; font-weight: 600; }
+.unified-modal input:focus-visible, .unified-modal textarea:focus-visible, .unified-modal select:focus-visible { outline: 2px solid #9aead6; outline-offset: 2px; }
+.unified-modal .technical-input { border-radius: 2px; }
+.unified-modal .technical-primary:disabled { opacity: .45; cursor: not-allowed; }
+.catalog-search-input { padding-left: 40px; }
+.catalog-service { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px; text-align: left; border: 1px solid #30434a; background: linear-gradient(135deg,#14232a,#0b141b); transition: border-color .2s; }
+.catalog-service:hover, .catalog-service:focus-visible { border-color: #9aead6; }
+#account-tools { border: 1px solid #30434a; border-radius: 3px; background: linear-gradient(140deg,#172528,#0d151c); box-shadow: 0 18px 50px #0008; }
+#account-tools .vault-menu-item { border-radius: 2px; font-size: 14px; }
+#account-tools .vault-menu-item svg { color: #9aead6; }
+#account-tools .vault-menu-item:hover { background: #9aead60d; }
+@media (max-width: 639px) {
+  .vault-dialog-backdrop > .unified-modal { border-radius: 16px 16px 4px 4px; }
+  .unified-modal h3 { font-size: 18px; }
+  .catalog-service { gap: 7px; padding: 8px; }
+}

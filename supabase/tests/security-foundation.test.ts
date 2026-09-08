@@ -42,13 +42,14 @@ describe.each([
     await db.exec(`
       CREATE ROLE anon NOLOGIN;
       CREATE ROLE authenticated NOLOGIN;
+      CREATE ROLE service_role NOLOGIN BYPASSRLS;
       CREATE SCHEMA auth;
       CREATE TABLE auth.users (id uuid PRIMARY KEY);
       CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
         $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
       CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS
         $$ SELECT current_user::text $$;
-      GRANT USAGE ON SCHEMA public, auth TO anon, authenticated;
+      GRANT USAGE ON SCHEMA public, auth TO anon, authenticated, service_role;
       INSERT INTO auth.users VALUES ('${A}'), ('${B}'), ('${C}');
     `);
     await db.exec(readFileSync(baseline, 'utf8'));
@@ -57,6 +58,7 @@ describe.each([
       CREATE POLICY stale_allow ON public.vaults FOR ALL USING (true) WITH CHECK (true);`);
     await db.exec(readFileSync('supabase/migrations/20260907032815_security_foundation.sql', 'utf8'));
     await db.exec(readFileSync('supabase/migrations/20260907033211_close_unsafe_otp_and_harden_profiles.sql', 'utf8'));
+    await db.exec(readFileSync('supabase/migrations/20260907235332_otp_inbox_and_crypto_context.sql', 'utf8'));
     await asUser(A);
     vault = await create();
     family = (await db.query<{ id: string }>(
@@ -175,6 +177,37 @@ describe.each([
     await denied(`SELECT vault_private.create_owned_vault('x','SHARED','${wrapped}','${nonce}')`);
     await asUser('');
     await expect(create()).rejects.toMatchObject({ code: '42501' });
+  });
+
+  it('keeps OTP aliases private and grants code access only through the owner', async () => {
+    const keyId = '10000000-0000-4000-8000-000000000001';
+    await asUser(A);
+    await db.query(
+      `SELECT public.configure_otp_alias($1,$2,'netflix',$3,$4::jsonb,$5,$6)`,
+      [vault, credential, keyId, JSON.stringify({ kty: 'RSA', n: 'test', e: 'AQAB' }), 'x'.repeat(128), nonce],
+    );
+    expect(await rows(`SELECT service_key,status FROM public.otp_aliases WHERE vault_id='${vault}'`))
+      .toEqual([{ service_key: 'netflix', status: 'setup' }]);
+
+    await asUser(B);
+    expect(await rows('SELECT * FROM public.otp_aliases')).toEqual([]);
+    expect(await rows('SELECT * FROM public.otp_receiving_keys')).toEqual([]);
+    await expect(db.query(`SELECT public.set_otp_access('${vault}','${B}',true)`))
+      .rejects.toMatchObject({ code: '42501' });
+    await denied(`SELECT public.enqueue_otp_delivery('event','20000000-0000-4000-8000-000000000001','token')`);
+
+    await asUser(A);
+    await db.query(`SELECT public.set_otp_access('${vault}','${B}',true)`);
+    await asUser(B);
+    expect(await rows('SELECT service_key FROM public.otp_aliases')).toEqual([{ service_key: 'netflix' }]);
+    expect(await rows('SELECT encrypted_private_key FROM public.otp_receiving_keys')).toHaveLength(1);
+
+    await asUser(A);
+    await db.query(`SELECT public.set_otp_access('${vault}','${B}',false)`);
+    expect(await rows(`SELECT status,last_status FROM public.otp_aliases WHERE vault_id='${vault}'`))
+      .toEqual([{ status: 'paused', last_status: 'access_revoked' }]);
+    await asUser(B);
+    expect(await rows('SELECT * FROM public.otp_aliases')).toEqual([]);
   });
 
   it('rolls back the vault if inserting the owner wrapper fails', async () => {

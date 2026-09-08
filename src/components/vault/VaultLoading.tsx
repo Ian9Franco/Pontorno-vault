@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { VaultObject } from './VaultObject';
 
 /** Structural placeholders contain no real vault names, credentials or fake progress. */
@@ -13,18 +13,19 @@ export function VaultSkeleton() {
   </div>;
 }
 
-/** Driven exclusively by real initialization/unlock work, never by an artificial timer. */
+/** The page keeps this visible for at least two seconds and until real work finishes. */
 export function VaultLoading({ unlocking = false, overlay = false }: { unlocking?: boolean; overlay?: boolean }) {
+  const reduceMotion = useReducedMotion();
   return <motion.div
     className={`vault-loading ${overlay ? 'vault-loading-overlay' : ''}`}
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
-    exit={{ opacity: 0, scale: 1.015 }}
-    transition={{ duration: 0.22, ease: 'easeOut' }}
+    exit={{ opacity: 0, scale: reduceMotion ? 1 : 1.015 }}
+    transition={{ duration: reduceMotion ? 0 : 0.22, ease: 'easeOut' }}
   >
     <div className="preload-console" role="status" aria-live="polite">
       <p className="technical-kicker">PONTORNO VAULT</p>
-      <VaultObject animated />
+      <VaultObject animated interactive />
       <h2>{unlocking ? 'Abriendo tu bóveda' : 'Preparando tu espacio'}</h2>
       <p>{unlocking ? 'Descifrando tus datos en este dispositivo.' : 'Comprobando la configuración de acceso.'}</p>
       <div className="preload-track" aria-hidden="true" />

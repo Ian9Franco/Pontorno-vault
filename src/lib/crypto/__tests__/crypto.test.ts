@@ -53,7 +53,7 @@ describe('Family Vault — Zero-Knowledge Cryptographic Core', () => {
 
   describe('AES-256-GCM Primitives & Tamper Resistance', () => {
     it('should encrypt and decrypt plaintext strings accurately', async () => {
-      const { userMasterKey } = await setupUserCrypto('Password123!', TEST_ARGON_PARAMS);
+      const { userMasterKey } = await setupUserCrypto('bosque cobre nube cristal', TEST_ARGON_PARAMS);
       const plaintext = 'Zero-Knowledge credentials test payload';
 
       const encrypted = await encryptAES_GCM(plaintext, userMasterKey);
@@ -65,7 +65,7 @@ describe('Family Vault — Zero-Knowledge Cryptographic Core', () => {
     });
 
     it('should reject tampered ciphertexts and invalid auth tags', async () => {
-      const { userMasterKey } = await setupUserCrypto('Password123!', TEST_ARGON_PARAMS);
+      const { userMasterKey } = await setupUserCrypto('bosque cobre nube cristal', TEST_ARGON_PARAMS);
       const plaintext = 'Sensitive bank credentials';
 
       const encrypted = await encryptAES_GCM(plaintext, userMasterKey);

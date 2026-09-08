@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { findPlatformByNameOrDomain } from '@/lib/constants/platforms';
+import { PLATFORM_MARKS } from '@/lib/constants/platform-marks';
 
 interface PlatformIconProps {
   platformName?: string;
@@ -22,7 +23,8 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({
   className = '',
   size = 'md',
 }) => {
-  const matchedPlatform = findPlatformByNameOrDomain(platformName || url);
+  const matchedPlatform = findPlatformByNameOrDomain(platformName) || findPlatformByNameOrDomain(url);
+  const mark = matchedPlatform?.iconSlug ? PLATFORM_MARKS[matchedPlatform.iconSlug] : undefined;
   const label = matchedPlatform?.name || platformName || 'Vault';
   const words = label.trim().split(/\s+/).filter(Boolean);
   const initials = words.length > 1
@@ -43,9 +45,9 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({
       className={`relative flex items-center justify-center flex-shrink-0 shadow-md border border-white/10 overflow-hidden ${sizeClasses} ${className}`}
       style={{ backgroundColor: bgColor }}
     >
-      <span className="font-bold text-white uppercase tracking-wider select-none" aria-hidden="true">
+      {mark ? <svg viewBox="0 0 24 24" className="h-[65%] w-[65%]" fill="white" aria-hidden="true"><path d={mark.path} /></svg> : <span className="font-bold text-white uppercase tracking-wider select-none" aria-hidden="true">
         {initials || 'VA'}
-      </span>
+      </span>}
     </div>
   );
 };

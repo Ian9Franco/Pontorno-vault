@@ -40,11 +40,11 @@ export const PlatformSelectModal: React.FC<PlatformSelectModalProps> = ({
 
   return (
     <div className="vault-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
-      <div className="w-full max-w-2xl bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-5 sm:p-6 animate-slide-up flex flex-col max-h-[85vh]">
+      <div className="w-full max-w-2xl bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-5 sm:p-6 animate-slide-up flex flex-col max-h-[85vh] unified-modal">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
+            <div className="p-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-[#9aead6]">
               <Layers className="w-5 h-5" />
             </div>
             <div>
@@ -52,7 +52,7 @@ export const PlatformSelectModal: React.FC<PlatformSelectModalProps> = ({
               <p className="text-xs text-slate-400">Selecciona un servicio para asignar su ícono oficial y dirección</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-white">
+          <button aria-label="Cerrar catálogo" onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -66,7 +66,7 @@ export const PlatformSelectModal: React.FC<PlatformSelectModalProps> = ({
               placeholder="Buscar servicio (ej. Disney+, Netflix, ChatGPT, Gmail, Spotify...)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs shadow-sm"
+              className="technical-input catalog-search-input "
               autoFocus
             />
           </div>
@@ -80,7 +80,7 @@ export const PlatformSelectModal: React.FC<PlatformSelectModalProps> = ({
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
                   selectedCategory === cat
-                    ? 'bg-indigo-600 text-white shadow-sm'
+                    ? 'bg-[#9aead6] text-[#08231f] shadow-sm'
                     : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800'
                 }`}
               >
@@ -100,7 +100,7 @@ export const PlatformSelectModal: React.FC<PlatformSelectModalProps> = ({
                 onSelect(platform);
                 onClose();
               }}
-              className="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 hover:border-indigo-500/50 hover:bg-slate-900 transition text-left group shadow-sm"
+              className="catalog-service group"
             >
               <PlatformIcon
                 platformName={platform.name}
@@ -109,7 +109,7 @@ export const PlatformSelectModal: React.FC<PlatformSelectModalProps> = ({
                 className="group-hover:scale-105 transition"
               />
               <div className="min-w-0">
-                <span className="text-xs font-semibold text-slate-200 block truncate group-hover:text-indigo-300 transition">
+                <span className="text-xs font-semibold text-slate-200 block truncate group-hover:text-[#baf6e7] transition">
                   {platform.name}
                 </span>
                 <span className="text-[11px] text-slate-400 block truncate">

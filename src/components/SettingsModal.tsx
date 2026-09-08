@@ -108,9 +108,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   return (
     <div className="vault-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
-      <div className="w-full max-w-lg bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-7 animate-slide-up max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-lg bg-[#111624] border border-slate-800/90 rounded-3xl shadow-2xl p-6 sm:p-7 animate-slide-up max-h-[90vh] overflow-y-auto unified-modal">
         <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-800/80">
-          <h3 className="text-base font-bold text-slate-100 flex items-center gap-2"><Shield className="w-5 h-5 text-indigo-400" /> Configuración de seguridad</h3>
+          <h3 className="text-base font-bold text-slate-100 flex items-center gap-2"><Shield className="w-5 h-5 text-[#9aead6]" /> Configuración de seguridad</h3>
           <button onClick={onClose} aria-label="Cerrar configuración" className="p-1 rounded-lg text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
         </div>
 
@@ -130,23 +130,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           </section>}
 
           <section className="pt-4 border-t border-slate-800/80">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5"><User className="w-4 h-4 text-indigo-400" /> Nombre visible</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5"><User className="w-4 h-4 text-[#9aead6]" /> Nombre visible</h4>
             {profileError && <p role="alert" className="mb-3 text-xs text-rose-300">{profileError}</p>}
-            {nameSaved && <div className="mb-3 p-2.5 rounded-xl bg-indigo-950/50 border border-indigo-800/40 text-indigo-300 text-xs flex items-center gap-2"><Check className="w-4 h-4" /> Nombre actualizado.</div>}
+            {nameSaved && <div className="mb-3 p-2.5 rounded-xl bg-indigo-950/50 border border-indigo-800/40 text-[#baf6e7] text-xs flex items-center gap-2"><Check className="w-4 h-4" /> Nombre actualizado.</div>}
             <form onSubmit={handleSaveProfile} className="flex gap-2">
               <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Tu nombre o alias" className="vault-input flex-1" required />
-              <button type="submit" disabled={isSavingProfile} className="rounded-xl bg-indigo-600 px-4 text-xs font-semibold text-white disabled:opacity-50">{isSavingProfile ? 'Guardando…' : 'Guardar'}</button>
+              <button type="submit" disabled={isSavingProfile} className="technical-primary">{isSavingProfile ? 'Guardando…' : 'Guardar'}</button>
             </form>
           </section>
 
           <section className="pt-4 border-t border-slate-800/80">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5"><Clock className="w-4 h-4 text-sky-400" /> Bloqueo automático</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5"><Clock className="w-4 h-4 text-[#9aead6]" /> Bloqueo automático</h4>
             <p className="text-xs text-slate-400 mb-3">Elimina claves y plaintext del estado de la aplicación después de inactividad.</p>
             <div className="grid grid-cols-4 gap-2">{[1, 5, 15, 30].map((mins) => <button key={mins} type="button" onClick={() => setAutoLockMinutes(mins)} className={`py-2 text-xs font-semibold rounded-xl border ${autoLockMinutes === mins ? 'bg-indigo-950/60 border-indigo-500 text-indigo-200' : 'bg-slate-950/80 border-slate-800 text-slate-400'}`}>{mins} min</button>)}</div>
           </section>
 
           <section className="pt-4 border-t border-slate-800/80">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5"><KeyRound className="w-4 h-4 text-indigo-400" /> Cambiar secreto de bóveda</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5"><KeyRound className="w-4 h-4 text-[#9aead6]" /> Cambiar secreto de bóveda</h4>
             <p className="text-xs text-slate-400 mb-3">Esto vuelve a envolver tu UserMasterKey. No cambia la contraseña de Google ni requiere recifrar las credenciales.</p>
             {legacySyncedAccount && <p className="mb-3 rounded-xl border border-amber-900/40 bg-amber-950/10 p-3 text-xs text-amber-100">Bloqueado hasta vincular Google: cambiarlo antes podría dejar el acceso legado y el cifrado usando secretos diferentes.</p>}
             {rotateSuccess && <div className="mb-3 p-3 rounded-xl bg-emerald-950/30 border border-emerald-800/40 text-emerald-200 text-xs flex items-center gap-2"><Check className="w-4 h-4" /> Secreto de bóveda actualizado.</div>}
@@ -155,7 +155,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               <input type="password" autoComplete="current-password" placeholder="Secreto de bóveda actual" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} className="vault-input" required />
               <input type="password" autoComplete="new-password" placeholder="Nuevo secreto de bóveda" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="vault-input" required minLength={12} />
               <input type="password" autoComplete="new-password" placeholder="Repetir nuevo secreto" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} className="vault-input" required />
-              <button type="submit" disabled={isRotating || legacySyncedAccount || !oldPassword || !newPassword} className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-200 text-xs font-semibold border border-slate-700 disabled:opacity-50 flex items-center justify-center gap-1.5">{isRotating ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Actualizando…</> : <><KeyRound className="w-3.5 h-3.5 text-indigo-400" /> Actualizar secreto</>}</button>
+              <button type="submit" disabled={isRotating || legacySyncedAccount || !oldPassword || !newPassword} className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-200 text-xs font-semibold border border-slate-700 disabled:opacity-50 flex items-center justify-center gap-1.5">{isRotating ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Actualizando…</> : <><KeyRound className="w-3.5 h-3.5 text-[#9aead6]" /> Actualizar secreto</>}</button>
             </form>
           </section>
         </div>

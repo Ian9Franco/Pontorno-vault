@@ -76,8 +76,7 @@
 /* Six-sided safe: transforms preserve geometry; the shadow is a separate ground plane. */
 .vault-object-scene { --size: 68px; --half: 34px; position: relative; flex-shrink: 0; width: 124px; height: 124px; perspective: 600px; }
 .vault-object-solid { position: absolute; width: var(--size); height: var(--size); left: calc(50% - var(--half)); top: calc(50% - var(--half)); transform-style: preserve-3d; transform: rotateX(-18deg) rotateY(-32deg); }
-.vault-object-draggable { cursor: grab; touch-action: none; user-select: none; }
-.vault-object-draggable:active { cursor: grabbing; }
+.vault-object-float { position: absolute; inset: 0; transform-style: preserve-3d; }
 .auth-submit svg, .card-icon-button svg, .dashboard-manage svg { transition: transform .2s ease; }
 .auth-submit:hover svg { transform: translateX(3px); }
 .card-icon-button:hover svg { transform: scale(1.08) rotate(-3deg); }
@@ -97,8 +96,10 @@
 .vault-object-shadow { position: absolute; bottom: 7px; left: 22px; width: 80px; height: 14px; background: #0008; filter: blur(7px); border-radius: 50%; }
 .preload-console .vault-object-scene { margin: 12px auto 20px; width: 160px; height: 150px; --size: 84px; --half: 42px; }
 .preload-console .vault-object-shadow { left: 40px; }
-.vault-object-animated .vault-object-solid { animation: vault-hover 6s ease-in-out infinite; }
-@keyframes vault-hover { 0%,100% { transform: translateY(0) rotateX(-18deg) rotateY(-32deg); } 50% { transform: translateY(-8px) rotateX(-12deg) rotateY(-12deg); } }
+.vault-object-animated .vault-object-float { animation: vault-hover 5s ease-in-out infinite; }
+.vault-object-animated .vault-object-shadow { animation: vault-shadow 5s ease-in-out infinite; }
+@keyframes vault-hover { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes vault-shadow { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.84); opacity: .55; } }
 @media (max-width: 639px) {
   .technical-dialog { margin: auto auto 12px; max-height: calc(100dvh - 24px); }
   .technical-dialog-inner { padding: 20px 16px max(20px,env(safe-area-inset-bottom)); }
@@ -117,6 +118,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .vault-switch::before, .credential-card::before, .technical-dialog::before, .auth-panel::before,
-  .preload-track, .skeleton-panel i, .skeleton-search, .technical-dialog[open], .vault-object-animated .vault-object-solid { animation: none; }
+  .preload-track, .skeleton-panel i, .skeleton-search, .technical-dialog[open], .vault-object-animated .vault-object-float, .vault-object-animated .vault-object-shadow { animation: none; }
   .auth-submit svg, .card-icon-button svg, .dashboard-manage svg { transition: none; transform: none; }
 }

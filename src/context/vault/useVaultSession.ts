@@ -1,31 +1,19 @@
 'use client';
+import { localVaultStorageKey, isTestMasterSession, createTestMasterUser } from '@/lib/constants/test-master';
+
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { type UserCryptoSetup } from '@/lib/crypto';
-import {
-  TEST_MASTER_DISPLAY_NAME,
-  TEST_MASTER_EMAIL,
-  TEST_MASTER_USER_ID,
-  isTestMasterSession,
-} from '@/lib/constants/test-master';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client';
 import { type User } from '@supabase/supabase-js';
 import { DEMO_STORAGE_KEY, type StoredEncryptedDB, type VaultEntity, type VaultItem, type UserProfile } from './types';
-
-function createTestMasterUser(): User {
-  return {
-    id: TEST_MASTER_USER_ID,
-    aud: 'authenticated',
-    role: 'authenticated',
-    email: TEST_MASTER_EMAIL,
-    app_metadata: { provider: 'test-master', providers: ['test-master'] },
-    user_metadata: { display_name: TEST_MASTER_DISPLAY_NAME, test_master: true },
-    created_at: new Date(0).toISOString(),
-  } as User;
-}
+import { createSessionGuard } from '@/lib/security/session-guard';
 
 /** Owns session state, subscriptions and inactivity locking. Keys stay in memory. */
 export function useVaultSession() {
+  const guard = useRef(createSessionGuard()).current;
+  const authBusyRef = useRef(false);
+  const identityRef = useRef<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
@@ -46,25 +34,28 @@ export function useVaultSession() {
 
   // Lock function: wipes plaintext keys and decrypted credentials from memory
   const lock = useCallback(() => {
+    guard.invalidate();
     userMasterKeyRef.current = null;
     vaultKeysRef.current.clear();
     setCredentials([]);
     setIsUnlocked(false);
-  }, []);
+  }, [guard]);
 
   // Fetch user profile from Supabase
   const fetchProfile = useCallback(async (currentUser: User | null) => {
+    const ticket = guard.capture();
     if (!currentUser) {
       setUserProfile(null);
       return;
     }
 
-    if (isSupabaseConfigured && supabase) {
+    if (!isTestMasterSession() && isSupabaseConfigured && supabase) {
       const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
         .maybeSingle();
+      if (!guard.current(ticket)) return;
 
       const name = data?.display_name || currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0] || 'Usuario';
       setUserProfile({
@@ -73,7 +64,7 @@ export function useVaultSession() {
         displayName: name,
       });
     } else {
-      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+      const raw = localStorage.getItem(localVaultStorageKey(DEMO_STORAGE_KEY));
       const parsed: StoredEncryptedDB = raw ? JSON.parse(raw) : null;
       setUserProfile(parsed?.profile || {
         id: currentUser.id,
@@ -85,12 +76,14 @@ export function useVaultSession() {
 
   // Check Supabase session & user_crypto configuration
   const checkUserCryptoStatus = useCallback(async (currentUser: User | null) => {
-    if (isSupabaseConfigured && supabase && currentUser) {
+    const ticket = guard.capture();
+    if (!isTestMasterSession() && isSupabaseConfigured && supabase && currentUser) {
       const { data, error } = await supabase
         .from('user_crypto')
         .select('*')
         .eq('user_id', currentUser.id)
         .maybeSingle();
+      if (!guard.current(ticket)) return;
 
       if (data && !error) {
         userCryptoDataRef.current = {
@@ -108,7 +101,7 @@ export function useVaultSession() {
       }
     } else {
       try {
-        const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+        const raw = localStorage.getItem(localVaultStorageKey(DEMO_STORAGE_KEY));
         if (raw) {
           const parsed: StoredEncryptedDB = JSON.parse(raw);
           if (parsed.userCrypto) {
@@ -127,6 +120,8 @@ export function useVaultSession() {
 
   // Initial load
   useEffect(() => {
+    let disposed = false;
+    const ticket = guard.capture();
     const init = async () => {
       try {
         if (isTestMasterSession()) {
@@ -134,7 +129,9 @@ export function useVaultSession() {
           await checkUserCryptoStatus(null);
         } else if (isSupabaseConfigured && supabase) {
           const { data: { session } } = await supabase.auth.getSession();
+          if (disposed || !guard.current(ticket)) return;
           const currentUser = session?.user || null;
+          identityRef.current = currentUser?.id || null;
           setUser(currentUser);
           if (currentUser) {
             await fetchProfile(currentUser);
@@ -146,14 +143,19 @@ export function useVaultSession() {
       } catch (e) {
         console.error('Error initializing auth state', e);
       } finally {
-        setIsLoading(false);
+        if (!disposed && !authBusyRef.current) setIsLoading(false);
       }
     };
     init();
 
-    if (!isTestMasterSession() && isSupabaseConfigured && supabase) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (isTestMasterSession()) return;
         const currentUser = session?.user || null;
+        if (identityRef.current && identityRef.current !== currentUser?.id) {
+          lock(); userCryptoDataRef.current = null; setUserProfile(null); setIsConfigured(false);
+        }
+        identityRef.current = currentUser?.id || null;
         setUser(currentUser);
         if (event === 'SIGNED_OUT' || !currentUser) {
           lock();
@@ -161,12 +163,18 @@ export function useVaultSession() {
           userCryptoDataRef.current = null;
           setIsConfigured(false);
         } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          await fetchProfile(currentUser);
-          await checkUserCryptoStatus(currentUser);
+          const authTicket = guard.capture();
+          setTimeout(() => {
+            if (disposed || !guard.current(authTicket)) return;
+            void Promise.all([fetchProfile(currentUser), checkUserCryptoStatus(currentUser)]).catch(() => {
+              if (guard.current(authTicket)) setAccessError('No se pudo actualizar la configuración de acceso.');
+            });
+          }, 0);
         }
       });
-      return () => subscription.unsubscribe();
+      return () => { disposed = true; subscription.unsubscribe(); guard.invalidate(); };
     }
+    return () => { disposed = true; guard.invalidate(); };
   }, [checkUserCryptoStatus, fetchProfile, lock]);
 
   // Activity tracker for Auto-Lock
@@ -201,6 +209,6 @@ export function useVaultSession() {
     };
   }, [isUnlocked, autoLockMinutes, lock, resetActivity]);
 
-  return { user, setUser, userProfile, setUserProfile, accessError, setAccessError, isUnlocked, setIsUnlocked, isConfigured, setIsConfigured, activeVaultId, setActiveVaultId, vaults, setVaults, credentials, setCredentials, isLoading, setIsLoading, autoLockMinutes, setAutoLockMinutesState, timeRemainingSeconds, setTimeRemainingSeconds, userMasterKeyRef, vaultKeysRef, userCryptoDataRef, lock, fetchProfile, resetActivity };
+  return { guard, authBusyRef, user, setUser, userProfile, setUserProfile, accessError, setAccessError, isUnlocked, setIsUnlocked, isConfigured, setIsConfigured, activeVaultId, setActiveVaultId, vaults, setVaults, credentials, setCredentials, isLoading, setIsLoading, autoLockMinutes, setAutoLockMinutesState, timeRemainingSeconds, setTimeRemainingSeconds, userMasterKeyRef, vaultKeysRef, userCryptoDataRef, lock, fetchProfile, resetActivity };
 }
 export type VaultSession = ReturnType<typeof useVaultSession>;

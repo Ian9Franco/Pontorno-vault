@@ -20,10 +20,11 @@ interface Props {
   onAdd: () => void;
   onEdit: (item: VaultItem) => void;
   onRemove: (id: string) => Promise<void>;
+  onReceiveCode?: (id: string) => void;
 }
 
 /** Bounded grid: 12 records per page prevents large vaults from growing indefinitely. */
-export function CredentialLibrary({ items, canWrite, onAdd, onEdit, onRemove }: Props) {
+export function CredentialLibrary({ items, canWrite, onAdd, onEdit, onRemove, onReceiveCode }: Props) {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
   const filtered = filterCredentials(items, query);
@@ -49,7 +50,7 @@ export function CredentialLibrary({ items, canWrite, onAdd, onEdit, onRemove }: 
       <p>{query ? 'Prueba otro servicio o nombre de usuario.' : canWrite ? 'Empieza guardando una cuenta que uses a menudo.' : 'Cuando haya una contraseña disponible, la verás aquí.'}</p>
       {query && <button onClick={() => { setQuery(''); setPage(0); }} className="card-detail-button">Limpiar búsqueda</button>}
     </div> : <div className="credential-grid" key={`${query}:${currentPage}`}>
-      {shown.map(item => <CredentialCard key={item.id} item={item} canWrite={canWrite} onEdit={onEdit} onRemove={onRemove} />)}
+      {shown.map(item => <CredentialCard key={item.id} item={item} canWrite={canWrite} onEdit={onEdit} onRemove={onRemove} onReceiveCode={onReceiveCode} />)}
     </div>}
     {pages > 1 && <nav className="library-pagination" aria-label="Páginas de servicios">
       <button disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)} aria-label="Página anterior"><ChevronLeft size={18} /></button>

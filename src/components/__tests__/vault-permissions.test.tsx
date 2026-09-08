@@ -29,7 +29,8 @@ describe('permission-aware vault UI', () => {
     expect(html).not.toContain('Editar bóveda actual');
     expect(html).toContain('Copiar contraseña');
     expect(html).toContain('invitaciones aún no están disponibles');
-    expect(html).toContain('inbox de códigos está temporalmente deshabilitado');
+    expect(html).toContain('Solo para esta bóveda. Se descifran en tu dispositivo.');
+    expect(html).not.toContain('Recibir códigos');
     expect(html).not.toContain('Configurar reenvío');
   });
   it('shows management only to the owner and protects the edit modal too', () => {
