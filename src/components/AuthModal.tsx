@@ -3,17 +3,10 @@
 import React, { useState } from 'react';
 import { useVault } from '@/context/VaultContext';
 import { vaultErrorMessage } from '@/lib/security/vault-access';
-<<<<<<< HEAD
-import { Shield, Eye, EyeOff, ArrowRight, Monitor, LockKeyhole, CheckCircle2 } from 'lucide-react';
-import { VaultObject } from '@/components/vault/VaultObject';
-import { motion, useReducedMotion } from 'motion/react';
-=======
 import { supabase } from '@/lib/supabase/client';
 import { Shield, Eye, EyeOff, ArrowRight, Monitor, LogIn, KeyRound } from 'lucide-react';
->>>>>>> 471b04eac18f633fab0b16004523e379830201d9
 
 export const AuthModal: React.FC = () => {
-  const reduceMotion = useReducedMotion();
   const { unifiedAuth, isSupabaseConnected, isConfigured, isLoading } = useVault();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -61,7 +54,6 @@ export const AuthModal: React.FC = () => {
         email: local ? '' : email.trim().toLowerCase(),
         masterPassword: password,
         displayName: local ? 'Yo' : email.split('@')[0],
-        // Password auth remains only as a migration path for existing synced accounts.
         isSignUp: local ? creatingLocal : false,
       });
     } catch (err) {
@@ -123,72 +115,6 @@ export const AuthModal: React.FC = () => {
   }
 
   return (
-<<<<<<< HEAD
-    <section className="auth-access" aria-labelledby="access-title">
-      <div className="auth-panel">
-        <div className="auth-panel-header">
-          <div className="auth-brand-mark"><Shield aria-hidden="true" /></div>
-          <div className="auth-heading">
-            <p className="technical-kicker">PONTORNO VAULT · {local ? 'LOCAL' : 'SECURE CLOUD'}</p>
-            <h2 id="access-title">{title}</h2>
-            <p>{creating
-              ? 'Una sola contraseña para proteger las demás. Elígela tú y guárdala en un lugar seguro.'
-              : 'Introduce tu contraseña maestra para abrir tus contraseñas.'}</p>
-          </div>
-          <VaultObject interactive />
-        </div>
-
-        <div className="auth-status-row" aria-label="Estado de seguridad">
-          <span><CheckCircle2 aria-hidden="true" /> Cifrado local</span>
-          <span><LockKeyhole aria-hidden="true" /> Acceso privado</span>
-        </div>
-
-        {local && <div className="auth-notice">
-          <Monitor aria-hidden="true" />
-          <div><p>Solo en este navegador</p><span>{creating
-            ? 'Todavía no hay una bóveda aquí. Puedes crearla sin correo ni cuenta.'
-            : 'Tu bóveda está guardada aquí. No necesitas un correo para abrirla.'} No se sincroniza; si borras los datos del navegador, la perderás.</span></div>
-        </div>}
-
-        {error && <p role="alert" className="technical-error">{error}</p>}
-        <form onSubmit={submit} className="auth-form" aria-busy={busy}>
-        {!local && <div>
-          <label htmlFor="access-email">Correo electrónico</label>
-          <input id="access-email" type="email" autoComplete="username" inputMode="email" autoCapitalize="none" spellCheck={false}
-            value={email} onChange={e => setEmail(e.target.value)} placeholder="nombre@ejemplo.com" required className="technical-input" />
-        </div>}
-        <div>
-          <label htmlFor="access-password">{creating ? 'Elige tu contraseña maestra' : 'Contraseña maestra'}</label>
-          <div className="relative">
-            <input id="access-password" type={visible ? 'text' : 'password'} autoComplete={creating ? 'new-password' : 'current-password'}
-              value={password} onChange={e => setPassword(e.target.value)} required minLength={creating ? 8 : undefined}
-              aria-describedby={creating ? 'password-guidance' : undefined} className="technical-input auth-input-with-action" />
-            <button type="button" onClick={() => setVisible(!visible)} aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={visible}
-              className="auth-visibility-button">
-              {visible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-            </button>
-          </div>
-          {creating && <p id="password-guidance" className="technical-hint">Usa una frase larga que recuerdes. No podremos recuperarla por ti.</p>}
-        </div>
-        {creating && <div>
-          <label htmlFor="access-confirm">Repite la contraseña</label>
-          <input id="access-confirm" type={visible ? 'text' : 'password'} autoComplete="new-password" value={confirmation}
-            onChange={e => setConfirmation(e.target.value)} required className="technical-input" />
-        </div>}
-        <motion.button type="submit" disabled={busy || isLoading} className="technical-primary auth-submit"
-          whileHover={reduceMotion ? undefined : { y: -2, boxShadow: '0 9px 24px rgba(0, 0, 0, .32)' }}
-          whileTap={reduceMotion ? undefined : { y: 0, scale: 0.98 }}
-          transition={{ type: 'spring', stiffness: 420, damping: 28 }}>
-          {busy ? 'Un momento…' : isLoading ? 'Comprobando este navegador…' : creating ? (local ? 'Crear mi bóveda' : 'Crear cuenta') : 'Abrir mi bóveda'}
-          {!busy && <ArrowRight className="h-5 w-5" aria-hidden="true" />}
-        </motion.button>
-        </form>
-        {!local && <button type="button" disabled={busy} onClick={() => { setCreateAccount(!createAccount); setError(null); setConfirmation(''); }}
-          className="auth-mode-toggle">
-        {creating ? 'Ya tengo una cuenta' : 'Soy nuevo · Crear cuenta'}
-        </button>}
-      </div>
-=======
     <section className="mx-auto w-full max-w-md px-5 py-8 sm:py-14" aria-labelledby="local-access-title">
       <div className="mb-7">
         <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/15 text-indigo-300"><Shield aria-hidden="true" /></div>
@@ -211,7 +137,6 @@ export const AuthModal: React.FC = () => {
         {creatingLocal && <div><label htmlFor="local-confirm" className="mb-2 block text-sm font-medium text-slate-200">Repite la frase maestra</label><input id="local-confirm" type={visible ? 'text' : 'password'} autoComplete="new-password" value={confirmation} onChange={e => setConfirmation(e.target.value)} required className="vault-input" /></div>}
         <button type="submit" disabled={busy || isLoading} className="vault-primary w-full">{creatingLocal ? 'Crear mi bóveda' : 'Abrir mi bóveda'} <ArrowRight className="h-5 w-5" /></button>
       </form>
->>>>>>> 471b04eac18f633fab0b16004523e379830201d9
     </section>
   );
 };
